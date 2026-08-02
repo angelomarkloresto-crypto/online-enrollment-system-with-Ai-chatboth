@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/php_file/backend-online-enrollment/PHPMailer-master/vendor/
+
+# Build outputs
+online-enrollment/dist/
+online-enrollment/build/
+online-enrollment/.vite/
+
+# Environment files
+.env
+.env.*
+
+# Local uploads and generated files
+backend/php_file/backend-online-enrollment/uploads/*
+!backend/php_file/backend-online-enrollment/uploads/.gitkeep
+
+# Database files and local data
+backend/mysql database/
+*.log
+*.tmp
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,18 @@
+backend-online-enrollment/
+
+├── config/
+├── admin/
+├── staff/
+├── student/
+├── uploads/
+│   └── report_cards/
+├── ocr/
+│   ├── scan_report_card.php          ✅ Done
+│   ├── process_ocr.php               ⏳
+│   ├── parse_average.php             ⏳
+│   ├── assign_section.php            ⏳
+│   ├── save_ocr_result.php           ⏳
+│   └── python/
+│       ├── extract_text.py           ⏳
+│       ├── image_preprocessing.py    ⏳
+│       └── requirements.txt
