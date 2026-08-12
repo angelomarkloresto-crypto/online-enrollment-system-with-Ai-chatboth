@@ -8,6 +8,9 @@ import StaffLogin          from "./pages/staff/StaffLogin";
 import EnrollmentManagement from "./pages/staff/EnrollmentManagement";
 import StrandsAndSections   from "./pages/staff/StrandsAndSections";
 import TimetableManagement from "./pages/staff/TimetableManagement";
+import Hirumi from "./pages/AI assistant/Hirumi";
+import SectionQrManager from "./pages/staff/SectionQrManager";
+
 
 /**
  * StaffApp.jsx
@@ -108,6 +111,16 @@ const NAV = [
         <rect x="11" y="3" width="7" height="6" rx="1.5" stroke={color} strokeWidth="1.5" />
         <rect x="2" y="12" width="7" height="5" rx="1.5" stroke={color} strokeWidth="1.5" />
         <rect x="11" y="12" width="7" height="5" rx="1.5" stroke={color} strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  {
+    label: "Add QR Code",
+    path:  "/staff/add-qr-code",
+    icon:  (color) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none">
+        <path d="M5 10h10M10 5v10" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+        <rect x="3" y="3" width="14" height="14" rx="2" stroke={color} strokeWidth="1.5" />
       </svg>
     ),
   },
@@ -306,6 +319,7 @@ function StaffSidebarLayout({ children }) {
         {/* Page content */}
         <main className="flex-1">{children}</main>
       </div>
+      <Hirumi role="staff" userId={staff?.staff_id} />
     </div>
   );
 }
@@ -363,6 +377,16 @@ function StaffRoutes() {
           <ProtectedRoute>
             <StaffSidebarLayout>
               <TimetableManagement />
+            </StaffSidebarLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff/add-qr-code"
+        element={
+          <ProtectedRoute>
+            <StaffSidebarLayout>
+              <SectionQrManager />
             </StaffSidebarLayout>
           </ProtectedRoute>
         }

@@ -122,3 +122,28 @@ stracture folder and file for backend
 │   └── auth.php
 │
 └── index.php
+backend/
+
+backend/
+
+ai/
+│
+├── php/
+│   ├── config.php
+│   ├── chat.php
+│   ├── openrouter.php
+│   └── response.php
+│
+├── python/
+│   ├── ai_engine.py
+│   ├── prompt_builder.py
+│   ├── conversation_memory.py
+│   └── requirements.txt
+│
+├── prompts/
+│   ├── system_prompt.txt
+│   ├── enrollment_rules.txt
+│   ├── educational_rules.txt
+│   └── restricted_topics.txt
+│
+└── logs/

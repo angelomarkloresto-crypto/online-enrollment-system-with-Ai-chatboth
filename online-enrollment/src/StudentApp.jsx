@@ -1,4 +1,4 @@
-import { useState, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import {
   BrowserRouter, Routes, Route,
   Navigate, useNavigate, useLocation,
@@ -10,7 +10,7 @@ import StudentDashboard from "./pages/student/StudentDashboard";
 import EnrollmentForm   from "./pages/student/EnrollmentForm";
 import StudentProfile   from "./pages/student/StudentProfile";
 import StudentTimetable from "./pages/student/StudentTimetable";
-
+import Hirumi from "./pages/AI assistant/Hirumi";
 /**
  * StudentApp.jsx
  * Router + auth + layout for the Student portal.
@@ -41,6 +41,7 @@ import StudentTimetable from "./pages/student/StudentTimetable";
  */
 
 const LOGOUT_URL = "/student/student_logout.php";
+const ENROLLMENT_STATUS_URL = "/student/check_enrollment_status.php";
 
 /* ── Auth context ─────────────────────────────────────────────── */
 const StudentAuthContext = createContext(null);
@@ -54,12 +55,40 @@ function StudentAuthProvider({ children }) {
     return id ? { student_id: id, name, gmail } : null;
   });
 
+  // null = not checked yet, true = Approved, false = not approved (or no
+  // record at all). Kept separate from `student` since it can change
+  // (Pending -> Approved) without the student logging in again.
+  const [isEnrolled, setIsEnrolled] = useState(null);
+
+  async function refreshEnrollmentStatus(studentId) {
+    if (!studentId) { setIsEnrolled(null); return; }
+    try {
+      const res = await fetch(`${ENROLLMENT_STATUS_URL}?student_id=${studentId}`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      setIsEnrolled(data?.success ? Boolean(data.is_enrolled) : null);
+    } catch {
+      // Fails safe: leave the Enroll nav item visible rather than
+      // guessing, if the status check itself couldn't be reached.
+      setIsEnrolled(null);
+    }
+  }
+
+  // Check status on initial load too (covers page refresh, not just
+  // the moment right after login).
+  useEffect(() => {
+    if (student?.student_id) refreshEnrollmentStatus(student.student_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function login(studentData) {
     const name = `${studentData.first_name ?? ""} ${studentData.last_name ?? ""}`.trim();
     localStorage.setItem("student_id",    String(studentData.student_id));
     localStorage.setItem("student_name",  name);
     localStorage.setItem("student_gmail", studentData.gmail ?? "");
     setStudent({ student_id: String(studentData.student_id), name, gmail: studentData.gmail });
+    refreshEnrollmentStatus(studentData.student_id);
   }
 
   async function logout() {
@@ -69,10 +98,18 @@ function StudentAuthProvider({ children }) {
     localStorage.removeItem("student_name");
     localStorage.removeItem("student_gmail");
     setStudent(null);
+    setIsEnrolled(null);
   }
 
   return (
-    <StudentAuthContext.Provider value={{ student, isLoggedIn: Boolean(student), login, logout }}>
+    <StudentAuthContext.Provider value={{
+      student,
+      isLoggedIn: Boolean(student),
+      isEnrolled,
+      refreshEnrollmentStatus: () => refreshEnrollmentStatus(student?.student_id),
+      login,
+      logout,
+    }}>
       {children}
     </StudentAuthContext.Provider>
   );
@@ -85,7 +122,11 @@ function ProtectedRoute({ children }) {
 }
 
 /* ── Nav items ────────────────────────────────────────────────── */
-const NAV = [
+function getNavItems(isEnrolled) {
+  return NAV_ALL.filter((item) => item.path !== "/student/enroll" || !isEnrolled);
+}
+
+const NAV_ALL = [
   {
     label: "Home",
     path:  "/student/dashboard",
@@ -133,9 +174,11 @@ const NAV = [
 
 /* ── Student layout ───────────────────────────────────────────── */
 function StudentLayout({ children }) {
-  const { logout, student } = useStudentAuth();
+  const { logout, student, isEnrolled } = useStudentAuth();
   const navigate            = useNavigate();
   const location            = useLocation();
+
+  const NAV = getNavItems(isEnrolled);
 
   const [collapsed, setCollapsed]   = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -302,6 +345,8 @@ function StudentLayout({ children }) {
         <main className="flex-1">{children}</main>
       </div>
 
+      <Hirumi role="student" userId={student?.student_id} />
+
       {/* ── Mobile bottom navigation ── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#D9E8D5] flex items-center">
         {NAV.map((item) => {
@@ -341,7 +386,7 @@ export default function StudentApp() {
 }
 
 function StudentRoutes() {
-  const { isLoggedIn, login } = useStudentAuth();
+  const { isLoggedIn, isEnrolled, login } = useStudentAuth();
   const navigate = useNavigate?.() ?? null;
 
   return (
@@ -393,11 +438,15 @@ function StudentRoutes() {
         path="/student/enroll"
         element={
           <ProtectedRoute>
-            <StudentLayout>
-              <EnrollmentForm
-                onBack={() => window.location.href = "/student/dashboard"}
-              />
-            </StudentLayout>
+            {isEnrolled ? (
+              <Navigate to="/student/dashboard" replace />
+            ) : (
+              <StudentLayout>
+                <EnrollmentForm
+                  onBack={() => window.location.href = "/student/dashboard"}
+                />
+              </StudentLayout>
+            )}
           </ProtectedRoute>
         }
       />

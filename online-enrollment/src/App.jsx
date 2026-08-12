@@ -11,6 +11,7 @@ import AdminDashboard  from "./pages/admin/AdminDashboard";
 import StaffManagement from "./pages/admin/StaffManagement";
 import AdminProfile    from "./pages/admin/AdminProfile";
 import AdminLayout     from "./pages/layouts/AdminLayouts";
+import Hirumi from "./pages/AI assistant/Hirumi";
 
 
 // import AdminLayout from "./pages/layouts/AdminLayouts";
@@ -300,6 +301,7 @@ function SidebarLayout({ children }) {
         {/* Page content */}
         <main className="flex-1">{children}</main>
       </div>
+      <Hirumi role="admin" userId={adminId} />
     </div>
   );
 }

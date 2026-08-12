@@ -13,7 +13,7 @@ import { useState, useEffect } from "react";
  *  3. Timetable available (if approved + timetable exists)
  */
 
-const API_BASE_NOTIFICATIONS = "http://localhost/backend-online-enrollment/student/notifications";
+const API_BASE_NOTIFICATIONS = "http://localhost/backend-online-enrollment/student";
 
 const NOTIFICATION_STYLES = {
   success: {
