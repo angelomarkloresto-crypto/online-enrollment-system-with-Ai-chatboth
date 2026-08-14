@@ -6,6 +6,7 @@ import {
 
 import StaffLogin          from "./pages/staff/StaffLogin";
 import EnrollmentManagement from "./pages/staff/EnrollmentManagement";
+import StudentList         from "./pages/staff/StudentList";
 import StrandsAndSections   from "./pages/staff/StrandsAndSections";
 import TimetableManagement from "./pages/staff/TimetableManagement";
 import Hirumi from "./pages/AI assistant/Hirumi";
@@ -99,6 +100,16 @@ const NAV = [
         <path d="M4 4h12v12H4z" rx="1.5" stroke={color} strokeWidth="1.5" />
         <path d="M8 8h4M8 11h4M8 14h2" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
         <path d="M4 7h12" stroke={color} strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  {
+    label: "Student List",
+    path:  "/staff/student-list",
+    icon:  (color) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none">
+        <path d="M7 9a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Zm-4 7a4 4 0 0 1 8 0" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M12.5 8.5A2.5 2.5 0 1 1 12.5 3a2.5 2.5 0 0 1 0 5.5ZM10 15.5a3.5 3.5 0 0 1 7 0" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -357,6 +368,16 @@ function StaffRoutes() {
           <ProtectedRoute>
             <StaffSidebarLayout>
               <EnrollmentManagement />
+            </StaffSidebarLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff/student-list"
+        element={
+          <ProtectedRoute>
+            <StaffSidebarLayout>
+              <StudentList />
             </StaffSidebarLayout>
           </ProtectedRoute>
         }

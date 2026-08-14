@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 
 /**
  * EnrollmentForm.jsx
- * Step 1 → Enrollment Info (student_type, grade_level, strand)
- * Step 2 → Report Card Scan (upload front → OCR → extract average; upload back)
- * Step 3 → Upload Requirements (PSA, good moral, COT)
- * Step 4 → Review & Submit
+ * Step → Enrollment Info (student_type, grade_level, strand)
+ * Step → Report Card Scan (upload front → OCR → extract average; upload back)
+ * Step → Upload Requirements (PSA, good moral, COT) — only shown when needed, see
+ *        `needsRequirements` below
+ * Step → Review & Submit
  *
  * Endpoints:
  *  POST /ocr/scan_report_card.php     → upload image to temp, returns filename
@@ -19,16 +20,47 @@ const OCR_BASE     = "http://localhost/backend-online-enrollment/ocr";
 const STUDENT_BASE = "http://localhost/backend-online-enrollment/student";
 const STAFF_BASE   = "http://localhost/backend-online-enrollment/staff";
 
-const STUDENT_TYPES = ["New Student", "Returning Student", "Transferee"];
-const GRADE_LEVELS  = ["7","8","9","10","11","12"];
-const SHS_GRADES    = ["11","12"];
-
-const STEPS = [
-  { label: "Enrollment Info",  desc: "Student type & grade level" },
-  { label: "Report Card Scan", desc: "Upload & scan your report card" },
-  { label: "Requirements",     desc: "Upload supporting documents" },
-  { label: "Review & Submit",  desc: "Confirm and submit" },
+/**
+ * Student type rules (per updated enrollment flow):
+ *
+ *   Type          Grade choices          Requirements (PSA + Good Moral)?
+ *   ────────────  ──────────────────     ─────────────────────────────────
+ *   New Jr High   Fixed: Grade 7         Yes — brand new student, no record on file
+ *   Old Jr High   G8, G9, G10            No  — already has a record with the school
+ *   Senior High   G11, G12 (+ strand)    Only for G11 (new to SHS); G12 is continuing
+ *   Transferee    G7–G12                 Yes — plus Certificate of Transfer is required
+ *   Returning     G7–G12                 No  — already has a record with the school
+ *
+ * All types still go through Report Card Scan (needed for section placement),
+ * but the "Requirements" step is only inserted into the wizard when it's
+ * actually needed — Old Jr High / Returning / Senior High Grade 12 skip
+ * straight from the scan to Review & Submit.
+ */
+const STUDENT_TYPES = [
+  { value: "New Jr High", label: "New Jr. High (Grade 7)" },
+  { value: "Old Jr High",  label: "Old Jr. High" },
+  { value: "Senior High",  label: "Senior High" },
+  { value: "Transferee",   label: "Transferee" },
+  { value: "Returning",    label: "Returning" },
 ];
+
+const SHS_GRADES = ["11","12"];
+
+// Which grade-level buttons are offered for each student type.
+const GRADE_OPTIONS_BY_TYPE = {
+  "New Jr High": ["7"],
+  "Old Jr High":  ["8","9","10"],
+  "Senior High":  ["11","12"],
+  "Transferee":   ["7","8","9","10","11","12"],
+  "Returning":    ["7","8","9","10","11","12"],
+};
+
+const STEP_META = {
+  info:         { label: "Enrollment Info",  desc: "Student type & grade level" },
+  scan:         { label: "Report Card Scan", desc: "Upload & scan your report card" },
+  requirements: { label: "Requirements",     desc: "Upload supporting documents" },
+  review:       { label: "Review & Submit",  desc: "Confirm and submit" },
+};
 
 export default function EnrollmentForm({ onBack }) {
   const studentId = localStorage.getItem("student_id");
@@ -37,7 +69,7 @@ export default function EnrollmentForm({ onBack }) {
 
   /* ── Step 1 state ── */
   const [enrollInfo, setEnrollInfo] = useState({
-    student_type: "New Student",
+    student_type: "New Jr High",
     grade_level:  "7",
     strand_id:    "",
   });
@@ -72,10 +104,35 @@ export default function EnrollmentForm({ onBack }) {
   const [assignError, setAssignError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null); // {success, message}
+  const [enrollmentStatus, setEnrollmentStatus] = useState(null); // 'Approved', 'Rejected', 'Pending', or null
+  const [statusCheckError, setStatusCheckError] = useState(null);
 
-  const isSHS    = SHS_GRADES.includes(enrollInfo.grade_level);
-  const isGrade7 = enrollInfo.grade_level === "7";
-  const isTransfer = enrollInfo.student_type === "Transferee";
+  const isSHS         = SHS_GRADES.includes(enrollInfo.grade_level);
+  const isNewJrHigh   = enrollInfo.student_type === "New Jr High";
+  const isTransferee  = enrollInfo.student_type === "Transferee";
+
+  // Requirements (PSA Birth Certificate + Good Moral) are only needed for
+  // students who don't already have a record with the school: a brand new
+  // Grade 7, a transferee coming from elsewhere, or a student stepping into
+  // Senior High for the first time (Grade 11). Old Jr High, Returning, and
+  // continuing Grade 12 students already have these on file.
+  const needsRequirements = isNewJrHigh || isTransferee || (isSHS && enrollInfo.grade_level === "11");
+
+  // Requirements step only appears in the wizard when it's actually needed.
+  const activeStepKeys = needsRequirements ? ["info","scan","requirements","review"] : ["info","scan","review"];
+  const STEPS    = activeStepKeys.map((k) => STEP_META[k]);
+  const stepKey  = activeStepKeys[step - 1];
+  const gradeOptions = GRADE_OPTIONS_BY_TYPE[enrollInfo.student_type] ?? [];
+
+  function handleStudentTypeChange(type) {
+    const opts = GRADE_OPTIONS_BY_TYPE[type] ?? [];
+    // New Jr High is always Grade 7 — auto-select it. Everything else
+    // requires an explicit grade pick, so clear the previous selection if
+    // it isn't valid for the newly chosen type.
+    const nextGrade = type === "New Jr High" ? "7" : (opts.includes(enrollInfo.grade_level) ? enrollInfo.grade_level : "");
+    setEnrollInfo({ student_type: type, grade_level: nextGrade, strand_id: "" });
+    setInfoErrors({});
+  }
 
   useEffect(() => { fetchStrands(); }, []);
 
@@ -186,8 +243,9 @@ export default function EnrollmentForm({ onBack }) {
 
   function validateRequirements() {
     const errs = {};
-    if (isGrade7 && !psaName)      errs.psa      = "PSA Birth Certificate is required for Grade 7.";
-    if (isGrade7 && !goodMoralName) errs.goodMoral = "Good Moral is required for Grade 7.";
+    if (!psaName)       errs.psa       = "PSA Birth Certificate is required.";
+    if (!goodMoralName) errs.goodMoral = "Good Moral is required.";
+    if (isTransferee && !cotName) errs.cot = "Certificate of Transfer is required for transferees.";
     setReqErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -195,11 +253,38 @@ export default function EnrollmentForm({ onBack }) {
   /* ══════════════════════════════════
      STEP 4 — assign section + submit
   ══════════════════════════════════ */
+  async function checkEnrollmentStatus() {
+    try {
+      const res = await fetch(`${STUDENT_BASE}/check_enrollment_status.php?student_id=${studentId}`, { credentials: "include" });
+      const data = await res.json();
+      if (data.success && data.has_enrollment) {
+        setEnrollmentStatus(data.enrollment_status);
+        return data.enrollment_status;
+      }
+      setEnrollmentStatus(null);
+      return null;
+    } catch (err) {
+      setStatusCheckError(err.message ?? "Could not check enrollment status.");
+      return null;
+    }
+  }
+
   async function handleGoToReview() {
-    if (!validateRequirements()) return;
-    setStep(4);
+    if (needsRequirements && !validateRequirements()) return;
+    
+    // Check if student is already approved/enrolled
     setAssigning(true);
     setAssignError(null);
+    setStatusCheckError(null);
+    
+    const currentStatus = await checkEnrollmentStatus();
+    if (currentStatus === "Approved") {
+      setAssigning(false);
+      setAssignError("You are already enrolled. Contact your administrator if you need to modify your enrollment.");
+      return;
+    }
+    
+    setStep(activeStepKeys.length); // jump to the "review" step, wherever it lands
     setAssignedSection(null);
     try {
       const res  = await fetch(`${OCR_BASE}/assign_section.php`, {
@@ -229,7 +314,7 @@ export default function EnrollmentForm({ onBack }) {
     try {
       const payload = {
         student_id:        studentId,
-        student_type:      enrollInfo.student_type, // backend maps New Student→New, others→Old
+        student_type:      enrollInfo.student_type, // "New Jr High" | "Old Jr High" | "Senior High" | "Transferee" | "Returning" — NOTE: confirm backend enum/mapping accepts these exact values
         grade_level:       enrollInfo.grade_level,
         strand_id:         isSHS ? enrollInfo.strand_id : null,
         average_grade:     Number(ocrAverage),
@@ -283,7 +368,7 @@ export default function EnrollmentForm({ onBack }) {
           <div className="h-1.5 w-full bg-[#D9E8D5] rounded-full mb-4 overflow-hidden">
             <div className="h-full bg-[#1B5E2C] rounded-full transition-all duration-300" style={{ width: pctW }} />
           </div>
-          <div className="grid grid-cols-4 gap-1">
+          <div className={`grid gap-1 ${STEPS.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
             {STEPS.map((s, i) => {
               const n = i + 1;
               const active = step === n;
@@ -313,40 +398,62 @@ export default function EnrollmentForm({ onBack }) {
             <p className="text-sm text-[#86A18A]">{STEPS[step-1].desc}</p>
           </div>
 
-          {/* ── STEP 1 ── */}
-          {step === 1 && (
+          {/* ── STEP: info ── */}
+          {stepKey === "info" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">Student Type *</label>
-                <select
-                  value={enrollInfo.student_type}
-                  onChange={(e) => { setEnrollInfo((p) => ({ ...p, student_type: e.target.value })); setInfoErrors((p) => ({ ...p, student_type: undefined })); }}
-                  className={inputCls(infoErrors.student_type)}
-                >
-                  {STUDENT_TYPES.map((t) => <option key={t}>{t}</option>)}
-                </select>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {STUDENT_TYPES.map((t) => (
+                    <button
+                      key={t.value} type="button"
+                      onClick={() => handleStudentTypeChange(t.value)}
+                      className={`rounded-lg border py-2.5 px-3 text-sm font-medium text-left transition-colors ${
+                        enrollInfo.student_type === t.value
+                          ? "bg-[#1B5E2C] text-white border-[#1B5E2C]"
+                          : "border-[#CBD9C8] text-[#5B6478] hover:border-[#1B5E2C]"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
                 {infoErrors.student_type && <Err msg={infoErrors.student_type} />}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">Grade Level *</label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {GRADE_LEVELS.map((g) => (
-                    <button
-                      key={g} type="button"
-                      onClick={() => { setEnrollInfo((p) => ({ ...p, grade_level: g, strand_id: "" })); setInfoErrors((p) => ({ ...p, grade_level: undefined })); }}
-                      className={`rounded-lg border py-2.5 text-sm font-medium transition-colors ${
-                        enrollInfo.grade_level === g
-                          ? "bg-[#1B5E2C] text-white border-[#1B5E2C]"
-                          : "border-[#CBD9C8] text-[#5B6478] hover:border-[#1B5E2C]"
-                      }`}
-                    >
-                      G{g}
-                    </button>
-                  ))}
-                </div>
+                {isNewJrHigh ? (
+                  <div className="rounded-lg border border-[#1B5E2C] bg-[#1B5E2C]/5 px-4 py-2.5 text-sm font-medium text-[#1B5E2C]">
+                    Grade 7 — fixed for new junior high enrollees
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    {gradeOptions.map((g) => (
+                      <button
+                        key={g} type="button"
+                        onClick={() => { setEnrollInfo((p) => ({ ...p, grade_level: g, strand_id: "" })); setInfoErrors((p) => ({ ...p, grade_level: undefined })); }}
+                        className={`rounded-lg border py-2.5 text-sm font-medium transition-colors ${
+                          enrollInfo.grade_level === g
+                            ? "bg-[#1B5E2C] text-white border-[#1B5E2C]"
+                            : "border-[#CBD9C8] text-[#5B6478] hover:border-[#1B5E2C]"
+                        }`}
+                      >
+                        G{g}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {infoErrors.grade_level && <Err msg={infoErrors.grade_level} />}
               </div>
+
+              {needsRequirements && (
+                <p className="text-xs text-[#8C6B12] bg-[#F2BE22]/10 border border-[#F2BE22]/30 rounded-lg px-3 py-2">
+                  {isTransferee
+                    ? "As a transferee, you'll need to upload your report card and requirements (PSA Birth Certificate, Good Moral, and Certificate of Transfer)."
+                    : "You'll need to upload your requirements (PSA Birth Certificate and Good Moral) since this is your first record with the school."}
+                </p>
+              )}
 
               {isSHS && (
                 <div>
@@ -376,8 +483,8 @@ export default function EnrollmentForm({ onBack }) {
             </div>
           )}
 
-          {/* ── STEP 2 ── */}
-          {step === 2 && (
+          {/* ── STEP: scan ── */}
+          {stepKey === "scan" && (
             <div className="space-y-5">
               {/* Front upload */}
               <div>
@@ -454,17 +561,21 @@ export default function EnrollmentForm({ onBack }) {
             </div>
           )}
 
-          {/* ── STEP 3 ── */}
-          {step === 3 && (
+          {/* ── STEP: requirements (only inserted into the wizard when needed) ── */}
+          {stepKey === "requirements" && (
             <div className="space-y-5">
               <div className="bg-[#FAFAF5] rounded-xl border border-[#D9E8D5] p-3 text-xs text-[#5B6478]">
                 <span className="font-medium text-[#1B5E2C]">Note:</span> Upload JPG or PNG images only, max 10MB each.
-                {isGrade7 && <span className="block mt-1 text-[#8C6B12] font-medium">PSA Birth Certificate and Good Moral are required for Grade 7 enrollees.</span>}
+                <span className="block mt-1 text-[#8C6B12] font-medium">
+                  {isTransferee
+                    ? "PSA Birth Certificate, Good Moral, and Certificate of Transfer are required for transferees."
+                    : "PSA Birth Certificate and Good Moral are required."}
+                </span>
               </div>
 
               {/* PSA Birth Certificate */}
               <ReqUpload
-                label={`PSA Birth Certificate${isGrade7 ? " *" : " (optional)"}`}
+                label="PSA Birth Certificate *"
                 file={psaFile}
                 uploading={uploading.psa}
                 uploaded={!!psaName}
@@ -477,7 +588,7 @@ export default function EnrollmentForm({ onBack }) {
 
               {/* Good Moral */}
               <ReqUpload
-                label={`Good Moral Certificate${isGrade7 ? " *" : " (optional)"}`}
+                label="Good Moral Certificate *"
                 file={goodMoralFile}
                 uploading={uploading.goodMoral}
                 uploaded={!!goodMoralName}
@@ -488,10 +599,10 @@ export default function EnrollmentForm({ onBack }) {
                 }}
               />
 
-              {/* Certificate of Transfer — only for transferees */}
-              {isTransfer && (
+              {/* Certificate of Transfer — required for transferees */}
+              {isTransferee && (
                 <ReqUpload
-                  label="Certificate of Transfer (optional)"
+                  label="Certificate of Transfer *"
                   file={cotFile}
                   uploading={uploading.cot}
                   uploaded={!!cotName}
@@ -505,19 +616,24 @@ export default function EnrollmentForm({ onBack }) {
             </div>
           )}
 
-          {/* ── STEP 4 ── */}
-          {step === 4 && (
+          {/* ── STEP: review ── */}
+          {stepKey === "review" && (
             <div className="space-y-4">
               {/* Section assignment */}
               {assigning && (
                 <div className="flex items-center gap-3 bg-[#F2BE22]/10 rounded-xl border border-[#F2BE22]/30 px-4 py-3">
                   <div className="h-5 w-5 rounded-full border-2 border-[#8C6B12] border-t-transparent animate-spin shrink-0" />
-                  <p className="text-sm text-[#8C6B12]">Finding your section…</p>
+                  <p className="text-sm text-[#8C6B12]">Checking enrollment status…</p>
                 </div>
               )}
               {assignError && (
                 <div className="bg-[#B3492B]/10 border border-[#B3492B]/30 text-[#B3492B] rounded-xl px-4 py-3 text-sm">
                   {assignError}
+                </div>
+              )}
+              {statusCheckError && (
+                <div className="bg-[#B3492B]/10 border border-[#B3492B]/30 text-[#B3492B] rounded-xl px-4 py-3 text-sm">
+                  {statusCheckError}
                 </div>
               )}
               {assignedSection && (
@@ -536,10 +652,14 @@ export default function EnrollmentForm({ onBack }) {
                 )}
                 <SummaryRow label="General Average" value={ocrAverage} />
                 <SummaryRow label="Report Card"     value="Front & Back ✓" />
-                <SummaryRow label="PSA Certificate" value={psaName ? "Uploaded ✓" : "Not uploaded"} />
-                <SummaryRow label="Good Moral"      value={goodMoralName ? "Uploaded ✓" : "Not uploaded"} />
-                {isTransfer && (
-                  <SummaryRow label="Transfer Certificate" value={cotName ? "Uploaded ✓" : "Not uploaded"} />
+                {needsRequirements && (
+                  <>
+                    <SummaryRow label="PSA Certificate" value={psaName ? "Uploaded ✓" : "Not uploaded"} />
+                    <SummaryRow label="Good Moral"      value={goodMoralName ? "Uploaded ✓" : "Not uploaded"} />
+                    {isTransferee && (
+                      <SummaryRow label="Transfer Certificate" value={cotName ? "Uploaded ✓" : "Not uploaded"} />
+                    )}
+                  </>
                 )}
               </div>
 
@@ -568,7 +688,7 @@ export default function EnrollmentForm({ onBack }) {
                 </button>
               )}
 
-              {step === 1 && (
+              {stepKey === "info" && (
                 <button
                   onClick={() => { if (validateInfo()) setStep(2); }}
                   className="flex-1 rounded-lg bg-[#1B5E2C] text-white text-sm font-medium py-2.5 hover:bg-[#164A22] transition-colors"
@@ -576,15 +696,21 @@ export default function EnrollmentForm({ onBack }) {
                   Next → Scan Report Card
                 </button>
               )}
-              {step === 2 && (
+              {stepKey === "scan" && (
                 <button
-                  onClick={() => { if (validateScan()) setStep(3); }}
+                  onClick={() => {
+                    if (!validateScan()) return;
+                    // Requirements step is only inserted when needed — otherwise
+                    // skip straight to Review (which also triggers section
+                    // assignment).
+                    needsRequirements ? setStep(3) : handleGoToReview();
+                  }}
                   className="flex-1 rounded-lg bg-[#1B5E2C] text-white text-sm font-medium py-2.5 hover:bg-[#164A22] transition-colors"
                 >
-                  Next → Upload Requirements
+                  {needsRequirements ? "Next → Upload Requirements" : "Next → Review"}
                 </button>
               )}
-              {step === 3 && (
+              {stepKey === "requirements" && (
                 <button
                   onClick={handleGoToReview}
                   className="flex-1 rounded-lg bg-[#1B5E2C] text-white text-sm font-medium py-2.5 hover:bg-[#164A22] transition-colors"
@@ -592,7 +718,7 @@ export default function EnrollmentForm({ onBack }) {
                   Next → Review
                 </button>
               )}
-              {step === 4 && !assigning && !assignError && assignedSection && (
+              {stepKey === "review" && !assigning && !assignError && !statusCheckError && assignedSection && (
                 <button
                   onClick={handleSubmit}
                   disabled={submitting}

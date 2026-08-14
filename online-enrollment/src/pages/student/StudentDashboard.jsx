@@ -49,6 +49,7 @@ export default function StudentDashboard({ onNavigate }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading]             = useState(true);
   const [loadError, setLoadError]         = useState(null);
+  const [notice, setNotice]               = useState(null); // e.g. "You are already enrolled."
 
   useEffect(() => { loadNotifications(); }, []);
 
@@ -79,6 +80,18 @@ export default function StudentDashboard({ onNavigate }) {
   const hasEnrolled = isApproved || isPending || isRejected;
 
   const timetableReady = notifications.some((n) => n.title === "Timetable Ready");
+
+  // Approved students already have a finalized enrollment — block them from
+  // re-opening the form and surface a notice instead. Rejected students are
+  // explicitly allowed to enroll again (they never got in), and pending
+  // students can still tap through to see their submitted application.
+  function handleEnrollClick() {
+    if (isApproved) {
+      setNotice("You are already enrolled.");
+      return;
+    }
+    onNavigate?.("enrollment");
+  }
 
   // Greeting based on time of day
   const hour = new Date().getHours();
@@ -137,15 +150,23 @@ export default function StudentDashboard({ onNavigate }) {
         <p className="text-xs uppercase tracking-[0.15em] text-[#86A18A] mb-3">
           Quick Actions
         </p>
+
+        {notice && (
+          <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-[#F2BE22]/40 bg-[#F2BE22]/10 px-4 py-3 text-sm text-[#8C6B12]">
+            <span>{notice}</span>
+            <button onClick={() => setNotice(null)} className="shrink-0 text-[#8C6B12]/70 hover:text-[#8C6B12]" aria-label="Dismiss">✕</button>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
             {
-              label:    hasEnrolled ? "View Enrollment" : "Enroll Now",
-              sub:      hasEnrolled ? "Track your application" : "Submit your enrollment form",
+              label:    isApproved ? "Already Enrolled" : isRejected ? "Enroll Again" : hasEnrolled ? "View Enrollment" : "Enroll Now",
+              sub:      isApproved ? "Your enrollment is finalized" : isRejected ? "Re-submit your enrollment form" : hasEnrolled ? "Track your application" : "Submit your enrollment form",
               icon:     <EnrollIcon />,
-              color:    "border-[#D9E8D5] hover:border-[#1B5E2C]",
-              onClick:  () => onNavigate?.("enrollment"),
-              disabled: isApproved,
+              color:    isApproved ? "border-[#D9E8D5] opacity-60" : "border-[#D9E8D5] hover:border-[#1B5E2C]",
+              onClick:  handleEnrollClick,
+              disabled: false, // stays clickable even when approved, so the notice can actually show
             },
             {
               label:    "My Timetable",

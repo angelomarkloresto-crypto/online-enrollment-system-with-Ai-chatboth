@@ -30,6 +30,7 @@ export default function AdminDashboard() {
   const [statusLoading, setStatusLoading]       = useState(true);
   const [statusUpdating, setStatusUpdating]     = useState(false);
   const [statusMessage, setStatusMessage]       = useState(null);
+  const [resetting, setResetting]               = useState(false);
 
   useEffect(() => { loadSummary(); loadStatus(); }, []);
 
@@ -75,6 +76,43 @@ export default function AdminDashboard() {
     finally  { setStatusUpdating(false); }
   }
 
+  async function handleResetEnrollment() {
+    const confirmed = window.confirm(
+      "Are you sure you want to reset ALL enrollments?\n\n" +
+      "This will:\n" +
+      "• Clear all student enrollments\n" +
+      "• Clear all sections and strands\n" +
+      "• Reset the system to a fresh state\n\n" +
+      "Note: Student requirements records from past enrollments will be preserved.\n\n" +
+      "This action cannot be undone!"
+    );
+    if (!confirmed) return;
+
+    setResetting(true);
+    setStatusMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/reset_enrollment.php`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStatusMessage({ type: "success", text: "Enrollment system has been reset successfully." });
+        // Reload summary to reflect changes
+        setTimeout(() => {
+          loadSummary();
+          loadStatus();
+        }, 1000);
+      } else {
+        setStatusMessage({ type: "error", text: data.message ?? "Reset failed." });
+      }
+    } catch (err) {
+      setStatusMessage({ type: "error", text: "Could not reach the server." });
+    } finally {
+      setResetting(false);
+    }
+  }
+
   return (
     <div className="px-4 sm:px-6 py-6 space-y-6">
 
@@ -105,17 +143,26 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        <button
-          onClick={toggleEnrollment}
-          disabled={statusUpdating || statusLoading}
-          className={`shrink-0 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
-            enrollmentStatus === "Open"
-              ? "bg-[#B3492B] text-white hover:bg-[#963B22]"
-              : "bg-[#1B5E2C] text-white hover:bg-[#164A22]"
-          }`}
-        >
-          {statusUpdating ? "Updating…" : enrollmentStatus === "Open" ? "Close Enrollment" : "Open Enrollment"}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+          <button
+            onClick={toggleEnrollment}
+            disabled={statusUpdating || statusLoading}
+            className={`rounded-lg px-5 py-2.5 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+              enrollmentStatus === "Open"
+                ? "bg-[#B3492B] text-white hover:bg-[#963B22]"
+                : "bg-[#1B5E2C] text-white hover:bg-[#164A22]"
+            }`}
+          >
+            {statusUpdating ? "Updating…" : enrollmentStatus === "Open" ? "Close Enrollment" : "Open Enrollment"}
+          </button>
+          <button
+            onClick={handleResetEnrollment}
+            disabled={resetting || statusLoading}
+            className="rounded-lg px-5 py-2.5 text-sm font-medium transition-colors bg-[#8C6B12] text-white hover:bg-[#6D5410] disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {resetting ? "Resetting…" : "Reset"}
+          </button>
+        </div>
       </section>
 
       {/* Stat cards */}
