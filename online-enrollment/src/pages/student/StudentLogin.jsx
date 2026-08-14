@@ -86,10 +86,10 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
           >
             Student Portal
           </h1>
-          <p className="mt-4 text-[#CFE3CE] text-[15px] leading-relaxed max-w-sm">
+          {/* <p className="mt-4 text-[#CFE3CE] text-[15px] leading-relaxed max-w-sm">
             Sign in to enroll, track your application status, view your
             class timetable, and manage your student profile.
-          </p>
+          </p> */}
 
           <div className="mt-8 space-y-3">
             {[
@@ -108,6 +108,13 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
               </div>
             ))}
           </div>
+
+          <button
+            onClick={onGoRegister}
+            className="mt-8 w-full rounded-lg bg-[#F2BE22] text-[#1B5E2C] text-sm font-medium py-3 hover:bg-[#DBA821] transition-colors"
+          >
+            Enroll now
+          </button>
         </div>
 
         <div className="mt-12 border-t border-white/10 pt-5">
@@ -133,6 +140,10 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
             <p className="mt-1 text-sm text-[#5B6478]">
               Sign in with your Gmail and password.
             </p>
+          </div>
+
+          <div className="mb-5 bg-[#F2BE22]/10 border border-[#F2BE22]/30 rounded-lg px-4 py-3 text-sm text-[#8C6B12]">
+            <span className="font-medium">Note:</span> Your password is your <span className="font-medium">LRN (Learner Reference Number)</span>
           </div>
 
           <div className="bg-white rounded-2xl border border-[#D9E8D5] shadow-sm p-6 sm:p-7">
@@ -200,7 +211,7 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
             </form>
           </div>
 
-          <p className="mt-5 text-center text-sm text-[#86A18A]">
+          {/* <p className="mt-5 text-center text-sm text-[#86A18A]">
             No account yet? {" "}
             <button
               type="button"
@@ -209,7 +220,7 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
             >
               Register here
             </button>
-          </p>
+          </p> */}
         </div>
       </div>
     </div>
