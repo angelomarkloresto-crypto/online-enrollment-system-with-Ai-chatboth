@@ -122,8 +122,8 @@ function ProtectedRoute({ children }) {
 }
 
 /* ── Nav items ────────────────────────────────────────────────── */
-function getNavItems(isEnrolled) {
-  return NAV_ALL.filter((item) => item.path !== "/student/enroll" || !isEnrolled);
+function getNavItems() {
+  return NAV_ALL.filter((item) => item.path !== "/student/enroll");
 }
 
 const NAV_ALL = [
@@ -178,7 +178,7 @@ function StudentLayout({ children }) {
   const navigate            = useNavigate();
   const location            = useLocation();
 
-  const NAV = getNavItems(isEnrolled);
+  const NAV = getNavItems();
 
   const [collapsed, setCollapsed]   = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);

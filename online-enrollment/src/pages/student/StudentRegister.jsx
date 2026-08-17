@@ -1,14 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-/**
- * StudentRegister - Combined with EnrollmentForm
- * 
- * Steps 1-3: Student Registration (Personal, Address, Guardian)
- * Steps 4-7: Student Enrollment (Info, Scan, Requirements, Review)
- * 
- * Final button: "Enroll now"
- * Password: Auto-set to LRN
- */
+
 
 const API_BASE     = "http://localhost/backend-online-enrollment/student";
 const OCR_BASE     = "http://localhost/backend-online-enrollment/ocr";
@@ -390,11 +382,33 @@ export default function StudentRegister({ onGoLogin }) {
         return;
       }
 
-      // Get or use existing student_id
-      const studentId = regData.student_id || localStorage.getItem("student_id");
-      if (!studentId && regData.student_id) {
-        localStorage.setItem("student_id", String(regData.student_id));
+      // Persist the newly created student ID before submitting the enrollment.
+      let regStudentId = Number(regData.student_id ?? localStorage.getItem("student_id"));
+
+      if (!regStudentId || Number.isNaN(regStudentId)) {
+        try {
+          const loginRes = await fetch(`${API_BASE}/student_login.php`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              gmail: regForm.gmail,
+              password: regForm.lrn,
+            }).toString(),
+          });
+          const loginData = await loginRes.json();
+          regStudentId = Number(loginData?.student?.student_id ?? loginData?.student_id ?? 0);
+        } catch {
+          // ignore and fail below
+        }
       }
+
+      if (!regStudentId || Number.isNaN(regStudentId)) {
+        setServerMsg({ type: "error", text: "Registration succeeded but the student ID was not returned. Please try again." });
+        setSubmitting(false);
+        return;
+      }
+      localStorage.setItem("student_id", String(regStudentId));
 
       // Then submit enrollment
       if (!assignedSection) {
@@ -402,6 +416,8 @@ export default function StudentRegister({ onGoLogin }) {
         setSubmitting(false);
         return;
       }
+
+      const studentId = regStudentId;
 
       const enrollPayload = {
         student_id: studentId,
@@ -610,7 +626,7 @@ export default function StudentRegister({ onGoLogin }) {
         </div>
 
         <p className="text-center text-sm text-[#86A18A] mt-5">
-          Already have an account?{" "}
+          Already Enrolled?{" "}
           <button onClick={onGoLogin} className="text-[#8C6B12] font-medium hover:underline">
             Sign in
           </button>
