@@ -1,17 +1,11 @@
 import { useState } from "react";
 
-/**
- * AdminLogin.jsx
- * Everyday sign-in screen for the single admin account.
- * Talks to: admin_login.php
- *
- * NOTE: admin_login.php currently has two bugs that need fixing server-side:
- *  - uses json_encode(file_get_contents(...)) instead of json_decode(...)
- *  - sets $_SESSION['amdin_id'] (typo) instead of $_SESSION['admin_id']
- * This component sends a proper JSON POST body and expects { success, message, admin_id }.
- */
 
-const API_BASE = "http://localhost/backend-online-enrollment/admin";
+// const API_BASE = "http://localhost/backend-online-enrollment/admin";
+export const getApiBase = () => {
+  return "/backend-online-enrollment/admin";
+};
+
 
 export default function AdminLogin({ onLoginSuccess }) {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -36,9 +30,10 @@ export default function AdminLogin({ onLoginSuccess }) {
 
     setSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE}/admin_login.php`, {
+      const res = await fetch(`${getApiBase()}/admin_login.php`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           email: form.email.trim(),
           password: form.password,

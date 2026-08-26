@@ -1,41 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 
-/**
- * EnrollmentForm.jsx
- * Step → Enrollment Info (student_type, grade_level, strand)
- * Step → Report Card Scan (upload front → OCR → extract average; upload back)
- * Step → Upload Requirements (PSA, good moral, COT) — only shown when needed, see
- *        `needsRequirements` below
- * Step → Review & Submit
- *
- * Endpoints:
- *  POST /ocr/scan_report_card.php     → upload image to temp, returns filename
- *  POST /ocr/process_ocr.php          → run OCR on temp file, returns average
- *  POST /ocr/assign_section.php       → find section by grade + average
- *  POST /student/submit_enrollment.php → final JSON submission
- *  GET  /staff/get_strand.php         → fetch strands for SHS dropdown
- */
 
-const OCR_BASE     = "http://localhost/backend-online-enrollment/ocr";
-const STUDENT_BASE = "http://localhost/backend-online-enrollment/student";
-const STAFF_BASE   = "http://localhost/backend-online-enrollment/staff";
 
-/**
- * Student type rules (per updated enrollment flow):
- *
- *   Type          Grade choices          Requirements (PSA + Good Moral)?
- *   ────────────  ──────────────────     ─────────────────────────────────
- *   New Jr High   Fixed: Grade 7         Yes — brand new student, no record on file
- *   Old Jr High   G8, G9, G10            No  — already has a record with the school
- *   Senior High   G11, G12 (+ strand)    Only for G11 (new to SHS); G12 is continuing
- *   Transferee    G7–G12                 Yes — plus Certificate of Transfer is required
- *   Returning     G7–G12                 No  — already has a record with the school
- *
- * All types still go through Report Card Scan (needed for section placement),
- * but the "Requirements" step is only inserted into the wizard when it's
- * actually needed — Old Jr High / Returning / Senior High Grade 12 skip
- * straight from the scan to Review & Submit.
- */
+// const OCR_BASE     = "http://localhost/backend-online-enrollment/ocr";
+// const STUDENT_BASE = "http://localhost/backend-online-enrollment/student";
+// const STAFF_BASE   = "http://localhost/backend-online-enrollment/staff";
+export const getApiBase = () => {
+  return "/backend-online-enrollment/ocr";
+  return "/backend-online-enrollment/student";
+  return "/backend-online-enrollment/staff";
+};
+
+
 const STUDENT_TYPES = [
   { value: "New Jr High", label: "New Jr. High (Grade 7)" },
   { value: "Old Jr High",  label: "Old Jr. High" },
@@ -138,7 +114,7 @@ export default function EnrollmentForm({ onBack }) {
 
   async function fetchStrands() {
     try {
-      const res  = await fetch(`${STAFF_BASE}/get_strand.php`, { credentials: "include" });
+      const res  = await fetch(`${getApiBase()}/get_strand.php`, { credentials: "include" });
       const data = await res.json();
       if (data.success) setStrands(data.strands ?? []);
     } catch { /* silently ignore */ }
@@ -162,7 +138,7 @@ export default function EnrollmentForm({ onBack }) {
   async function uploadToTemp(file) {
     const body = new FormData();
     body.append("report_card", file);
-    const res  = await fetch(`${OCR_BASE}/scan_report_card.php`, {
+    const res  = await fetch(`${getApiBase()}/scan_report_card.php`, {
       method: "POST", credentials: "include", body,
     });
     const data = await res.json();
@@ -185,7 +161,7 @@ export default function EnrollmentForm({ onBack }) {
       setOcrMsg("Scanning for your average grade…");
 
       const ocrBody = JSON.stringify({ filename });
-      const ocrRes  = await fetch(`${OCR_BASE}/process_ocr.php`, {
+      const ocrRes  = await fetch(`${getApiBase()}/process_ocr.php`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -255,7 +231,7 @@ export default function EnrollmentForm({ onBack }) {
   ══════════════════════════════════ */
   async function checkEnrollmentStatus() {
     try {
-      const res = await fetch(`${STUDENT_BASE}/check_enrollment_status.php?student_id=${studentId}`, { credentials: "include" });
+      const res = await fetch(`${getApiBase()}/check_enrollment_status.php?student_id=${studentId}`, { credentials: "include" });
       const data = await res.json();
       if (data.success && data.has_enrollment) {
         setEnrollmentStatus(data.enrollment_status);
@@ -287,7 +263,7 @@ export default function EnrollmentForm({ onBack }) {
     setStep(activeStepKeys.length); // jump to the "review" step, wherever it lands
     setAssignedSection(null);
     try {
-      const res  = await fetch(`${OCR_BASE}/assign_section.php`, {
+      const res  = await fetch(`${getApiBase()}/assign_section.php`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -326,7 +302,7 @@ export default function EnrollmentForm({ onBack }) {
         good_moral:        goodMoralName || null,
         certificate_of_transfer: cotName || null,
       };
-      const res  = await fetch(`${STUDENT_BASE}/submit_enrollment.php`, {
+      const res  = await fetch(`${getApiBase()}/submit_enrollment.php`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -348,7 +324,7 @@ export default function EnrollmentForm({ onBack }) {
       <div className="max-w-xl mx-auto">
 
         {/* Back */}
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-[#86A18A] hover:text-[#1B5E2C] mb-5 transition-colors">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-[#0B2B26]/45 hover:text-[#0B2B26] mb-5 transition-colors">
           <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
             <path d="M13 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -357,16 +333,16 @@ export default function EnrollmentForm({ onBack }) {
 
         {/* Header */}
         <div className="mb-6">
-          <p className="text-xs uppercase tracking-[0.15em] text-[#8C6B12] mb-1">Student Portal</p>
-          <h2 className="text-2xl text-[#1B5E2C]" style={{ fontFamily: "'Fraunces', serif" }}>
+          <p className="text-xs uppercase tracking-[0.15em] text-[#163832] mb-1">Student Portal</p>
+          <h2 className="text-2xl text-[#0B2B26]" style={{ fontFamily: "'Fraunces', serif" }}>
             Enrollment Form
           </h2>
         </div>
 
         {/* Progress */}
         <div className="mb-6">
-          <div className="h-1.5 w-full bg-[#D9E8D5] rounded-full mb-4 overflow-hidden">
-            <div className="h-full bg-[#1B5E2C] rounded-full transition-all duration-300" style={{ width: pctW }} />
+          <div className="h-1.5 w-full bg-[#235347]/15 rounded-full mb-4 overflow-hidden">
+            <div className="h-full bg-[#0B2B26] rounded-full transition-all duration-300" style={{ width: pctW }} />
           </div>
           <div className={`grid gap-1 ${STEPS.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
             {STEPS.map((s, i) => {
@@ -376,11 +352,11 @@ export default function EnrollmentForm({ onBack }) {
               return (
                 <div key={s.label} className="flex flex-col items-center text-center">
                   <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium mb-1 transition-colors ${
-                    done ? "bg-[#1B5E2C] text-white" : active ? "bg-[#F2BE22] text-[#1B5E2C]" : "bg-[#EFF4ED] text-[#86A18A]"
+                    done ? "bg-[#0B2B26] text-white" : active ? "bg-[#8EB69B] text-[#0B2B26]" : "bg-[#DAF1DE]/60 text-[#0B2B26]/45"
                   }`}>
                     {done ? "✓" : n}
                   </div>
-                  <p className={`text-xs font-medium hidden sm:block truncate w-full px-1 ${active ? "text-[#1B5E2C]" : "text-[#86A18A]"}`}>
+                  <p className={`text-xs font-medium hidden sm:block truncate w-full px-1 ${active ? "text-[#0B2B26]" : "text-[#0B2B26]/45"}`}>
                     {s.label}
                   </p>
                 </div>
@@ -390,19 +366,19 @@ export default function EnrollmentForm({ onBack }) {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl border border-[#D9E8D5] shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-[#235347]/15 shadow-sm p-6">
           <div className="mb-5">
-            <h3 className="text-lg font-medium text-[#1B5E2C]" style={{ fontFamily: "'Fraunces', serif" }}>
+            <h3 className="text-lg font-medium text-[#0B2B26]" style={{ fontFamily: "'Fraunces', serif" }}>
               Step {step} — {STEPS[step-1].label}
             </h3>
-            <p className="text-sm text-[#86A18A]">{STEPS[step-1].desc}</p>
+            <p className="text-sm text-[#0B2B26]/45">{STEPS[step-1].desc}</p>
           </div>
 
           {/* ── STEP: info ── */}
           {stepKey === "info" && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">Student Type *</label>
+                <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">Student Type *</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {STUDENT_TYPES.map((t) => (
                     <button
@@ -410,8 +386,8 @@ export default function EnrollmentForm({ onBack }) {
                       onClick={() => handleStudentTypeChange(t.value)}
                       className={`rounded-lg border py-2.5 px-3 text-sm font-medium text-left transition-colors ${
                         enrollInfo.student_type === t.value
-                          ? "bg-[#1B5E2C] text-white border-[#1B5E2C]"
-                          : "border-[#CBD9C8] text-[#5B6478] hover:border-[#1B5E2C]"
+                          ? "bg-[#0B2B26] text-white border-[#0B2B26]"
+                          : "border-[#235347]/25 text-[#0B2B26]/70 hover:border-[#0B2B26]"
                       }`}
                     >
                       {t.label}
@@ -422,9 +398,9 @@ export default function EnrollmentForm({ onBack }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">Grade Level *</label>
+                <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">Grade Level *</label>
                 {isNewJrHigh ? (
-                  <div className="rounded-lg border border-[#1B5E2C] bg-[#1B5E2C]/5 px-4 py-2.5 text-sm font-medium text-[#1B5E2C]">
+                  <div className="rounded-lg border border-[#0B2B26] bg-[#0B2B26]/5 px-4 py-2.5 text-sm font-medium text-[#0B2B26]">
                     Grade 7 — fixed for new junior high enrollees
                   </div>
                 ) : (
@@ -435,8 +411,8 @@ export default function EnrollmentForm({ onBack }) {
                         onClick={() => { setEnrollInfo((p) => ({ ...p, grade_level: g, strand_id: "" })); setInfoErrors((p) => ({ ...p, grade_level: undefined })); }}
                         className={`rounded-lg border py-2.5 text-sm font-medium transition-colors ${
                           enrollInfo.grade_level === g
-                            ? "bg-[#1B5E2C] text-white border-[#1B5E2C]"
-                            : "border-[#CBD9C8] text-[#5B6478] hover:border-[#1B5E2C]"
+                            ? "bg-[#0B2B26] text-white border-[#0B2B26]"
+                            : "border-[#235347]/25 text-[#0B2B26]/70 hover:border-[#0B2B26]"
                         }`}
                       >
                         G{g}
@@ -448,7 +424,7 @@ export default function EnrollmentForm({ onBack }) {
               </div>
 
               {needsRequirements && (
-                <p className="text-xs text-[#8C6B12] bg-[#F2BE22]/10 border border-[#F2BE22]/30 rounded-lg px-3 py-2">
+                <p className="text-xs text-[#163832] bg-[#8EB69B]/10 border border-[#8EB69B]/30 rounded-lg px-3 py-2">
                   {isTransferee
                     ? "As a transferee, you'll need to upload your report card and requirements (PSA Birth Certificate, Good Moral, and Certificate of Transfer)."
                     : "You'll need to upload your requirements (PSA Birth Certificate and Good Moral) since this is your first record with the school."}
@@ -457,9 +433,9 @@ export default function EnrollmentForm({ onBack }) {
 
               {isSHS && (
                 <div>
-                  <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">Strand *</label>
+                  <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">Strand *</label>
                   {strands.length === 0 ? (
-                    <p className="text-sm text-[#86A18A]">Loading strands…</p>
+                    <p className="text-sm text-[#0B2B26]/45">Loading strands…</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       {strands.map((s) => (
@@ -468,8 +444,8 @@ export default function EnrollmentForm({ onBack }) {
                           onClick={() => { setEnrollInfo((p) => ({ ...p, strand_id: String(s.strand_id) })); setInfoErrors((p) => ({ ...p, strand_id: undefined })); }}
                           className={`rounded-lg border py-2.5 px-3 text-sm font-medium text-left transition-colors ${
                             enrollInfo.strand_id === String(s.strand_id)
-                              ? "bg-[#1B5E2C] text-white border-[#1B5E2C]"
-                              : "border-[#CBD9C8] text-[#5B6478] hover:border-[#1B5E2C]"
+                              ? "bg-[#0B2B26] text-white border-[#0B2B26]"
+                              : "border-[#235347]/25 text-[#0B2B26]/70 hover:border-[#0B2B26]"
                           }`}
                         >
                           {s.strand_name}
@@ -488,10 +464,10 @@ export default function EnrollmentForm({ onBack }) {
             <div className="space-y-5">
               {/* Front upload */}
               <div>
-                <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">
+                <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">
                   Report Card — Front *
                 </label>
-                <p className="text-xs text-[#86A18A] mb-2">
+                <p className="text-xs text-[#0B2B26]/45 mb-2">
                   The system will scan this to detect your average grade. Use a clear, well-lit photo.
                 </p>
                 <UploadBox
@@ -506,9 +482,9 @@ export default function EnrollmentForm({ onBack }) {
                 {/* OCR status */}
                 {ocrStatus !== "idle" && (
                   <div className={`mt-3 rounded-lg px-4 py-3 text-sm flex items-center gap-2 ${
-                    ocrStatus === "done"  ? "bg-[#1B5E2C]/10 text-[#1B5E2C]"
+                    ocrStatus === "done"  ? "bg-[#0B2B26]/10 text-[#0B2B26]"
                     : ocrStatus === "error" ? "bg-[#B3492B]/10 text-[#B3492B]"
-                    : "bg-[#F2BE22]/10 text-[#8C6B12]"
+                    : "bg-[#8EB69B]/10 text-[#163832]"
                   }`}>
                     {(ocrStatus === "uploading" || ocrStatus === "scanning") && (
                       <div className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin shrink-0" />
@@ -521,10 +497,10 @@ export default function EnrollmentForm({ onBack }) {
               {/* Manual average input — always shown after scan attempt */}
               {(ocrStatus === "done" || ocrStatus === "error") && (
                 <div>
-                  <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">
+                  <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">
                     General Average *
                     {ocrStatus === "done" && (
-                      <span className="ml-2 text-xs font-normal text-[#86A18A]">(auto-detected — you can correct it)</span>
+                      <span className="ml-2 text-xs font-normal text-[#0B2B26]/45">(auto-detected — you can correct it)</span>
                     )}
                     {ocrStatus === "error" && (
                       <span className="ml-2 text-xs font-normal text-[#B3492B]">(enter manually)</span>
@@ -543,7 +519,7 @@ export default function EnrollmentForm({ onBack }) {
 
               {/* Back upload */}
               <div>
-                <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">
+                <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">
                   Report Card — Back *
                 </label>
                 <UploadBox
@@ -555,7 +531,7 @@ export default function EnrollmentForm({ onBack }) {
                 />
                 {scanErrors.back && <Err msg={scanErrors.back} />}
                 {backName && !scanErrors.back && (
-                  <p className="mt-1.5 text-xs text-[#1B5E2C]">✓ Back uploaded</p>
+                  <p className="mt-1.5 text-xs text-[#0B2B26]">✓ Back uploaded</p>
                 )}
               </div>
             </div>
@@ -564,9 +540,9 @@ export default function EnrollmentForm({ onBack }) {
           {/* ── STEP: requirements (only inserted into the wizard when needed) ── */}
           {stepKey === "requirements" && (
             <div className="space-y-5">
-              <div className="bg-[#FAFAF5] rounded-xl border border-[#D9E8D5] p-3 text-xs text-[#5B6478]">
-                <span className="font-medium text-[#1B5E2C]">Note:</span> Upload JPG or PNG images only, max 10MB each.
-                <span className="block mt-1 text-[#8C6B12] font-medium">
+              <div className="bg-[#DAF1DE]/40 rounded-xl border border-[#235347]/15 p-3 text-xs text-[#0B2B26]/70">
+                <span className="font-medium text-[#0B2B26]">Note:</span> Upload JPG or PNG images only, max 10MB each.
+                <span className="block mt-1 text-[#163832] font-medium">
                   {isTransferee
                     ? "PSA Birth Certificate, Good Moral, and Certificate of Transfer are required for transferees."
                     : "PSA Birth Certificate and Good Moral are required."}
@@ -621,9 +597,9 @@ export default function EnrollmentForm({ onBack }) {
             <div className="space-y-4">
               {/* Section assignment */}
               {assigning && (
-                <div className="flex items-center gap-3 bg-[#F2BE22]/10 rounded-xl border border-[#F2BE22]/30 px-4 py-3">
-                  <div className="h-5 w-5 rounded-full border-2 border-[#8C6B12] border-t-transparent animate-spin shrink-0" />
-                  <p className="text-sm text-[#8C6B12]">Checking enrollment status…</p>
+                <div className="flex items-center gap-3 bg-[#8EB69B]/10 rounded-xl border border-[#8EB69B]/30 px-4 py-3">
+                  <div className="h-5 w-5 rounded-full border-2 border-[#163832] border-t-transparent animate-spin shrink-0" />
+                  <p className="text-sm text-[#163832]">Checking enrollment status…</p>
                 </div>
               )}
               {assignError && (
@@ -637,14 +613,14 @@ export default function EnrollmentForm({ onBack }) {
                 </div>
               )}
               {assignedSection && (
-                <div className="bg-[#1B5E2C]/8 border border-[#1B5E2C]/25 rounded-xl px-4 py-3">
-                  <p className="text-xs text-[#86A18A] mb-0.5">Section Assigned</p>
-                  <p className="text-base font-medium text-[#1B5E2C]">{assignedSection.section_name}</p>
+                <div className="bg-[#0B2B26]/8 border border-[#0B2B26]/25 rounded-xl px-4 py-3">
+                  <p className="text-xs text-[#0B2B26]/45 mb-0.5">Section Assigned</p>
+                  <p className="text-base font-medium text-[#0B2B26]">{assignedSection.section_name}</p>
                 </div>
               )}
 
               {/* Summary */}
-              <div className="bg-[#FAFAF5] rounded-xl border border-[#D9E8D5] divide-y divide-[#EFF4ED]">
+              <div className="bg-[#DAF1DE]/40 rounded-xl border border-[#235347]/15 divide-y divide-[#DAF1DE]/60">
                 <SummaryRow label="Student Type"    value={enrollInfo.student_type} />
                 <SummaryRow label="Grade Level"     value={`Grade ${enrollInfo.grade_level}`} />
                 {isSHS && (
@@ -667,7 +643,7 @@ export default function EnrollmentForm({ onBack }) {
               {submitResult && (
                 <div className={`rounded-xl px-4 py-3 text-sm border ${
                   submitResult.success
-                    ? "bg-[#1B5E2C]/10 text-[#1B5E2C] border-[#1B5E2C]/25"
+                    ? "bg-[#0B2B26]/10 text-[#0B2B26] border-[#0B2B26]/25"
                     : "bg-[#B3492B]/10 text-[#B3492B] border-[#B3492B]/25"
                 }`}>
                   {submitResult.message}
@@ -682,7 +658,7 @@ export default function EnrollmentForm({ onBack }) {
               {step > 1 && (
                 <button
                   onClick={() => { setStep((s) => s - 1); setScanErrors({}); setReqErrors({}); }}
-                  className="flex-1 rounded-lg border border-[#CBD9C8] text-[#5B6478] text-sm font-medium py-2.5 hover:bg-[#FAFAF5]"
+                  className="flex-1 rounded-lg border border-[#235347]/25 text-[#0B2B26]/70 text-sm font-medium py-2.5 hover:bg-[#DAF1DE]/40"
                 >
                   Back
                 </button>
@@ -691,7 +667,7 @@ export default function EnrollmentForm({ onBack }) {
               {stepKey === "info" && (
                 <button
                   onClick={() => { if (validateInfo()) setStep(2); }}
-                  className="flex-1 rounded-lg bg-[#1B5E2C] text-white text-sm font-medium py-2.5 hover:bg-[#164A22] transition-colors"
+                  className="flex-1 rounded-lg bg-[#0B2B26] text-white text-sm font-medium py-2.5 hover:bg-[#051F20] transition-colors"
                 >
                   Next → Scan Report Card
                 </button>
@@ -705,7 +681,7 @@ export default function EnrollmentForm({ onBack }) {
                     // assignment).
                     needsRequirements ? setStep(3) : handleGoToReview();
                   }}
-                  className="flex-1 rounded-lg bg-[#1B5E2C] text-white text-sm font-medium py-2.5 hover:bg-[#164A22] transition-colors"
+                  className="flex-1 rounded-lg bg-[#0B2B26] text-white text-sm font-medium py-2.5 hover:bg-[#051F20] transition-colors"
                 >
                   {needsRequirements ? "Next → Upload Requirements" : "Next → Review"}
                 </button>
@@ -713,7 +689,7 @@ export default function EnrollmentForm({ onBack }) {
               {stepKey === "requirements" && (
                 <button
                   onClick={handleGoToReview}
-                  className="flex-1 rounded-lg bg-[#1B5E2C] text-white text-sm font-medium py-2.5 hover:bg-[#164A22] transition-colors"
+                  className="flex-1 rounded-lg bg-[#0B2B26] text-white text-sm font-medium py-2.5 hover:bg-[#051F20] transition-colors"
                 >
                   Next → Review
                 </button>
@@ -722,7 +698,7 @@ export default function EnrollmentForm({ onBack }) {
                 <button
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="flex-1 rounded-lg bg-[#1B5E2C] text-white text-sm font-medium py-2.5 hover:bg-[#164A22] disabled:opacity-60 transition-colors"
+                  className="flex-1 rounded-lg bg-[#0B2B26] text-white text-sm font-medium py-2.5 hover:bg-[#051F20] disabled:opacity-60 transition-colors"
                 >
                   {submitting ? "Submitting…" : "Submit Enrollment"}
                 </button>
@@ -733,7 +709,7 @@ export default function EnrollmentForm({ onBack }) {
           {submitResult?.success && (
             <button
               onClick={onBack}
-              className="w-full mt-6 rounded-lg bg-[#1B5E2C] text-white text-sm font-medium py-2.5 hover:bg-[#164A22] transition-colors"
+              className="w-full mt-6 rounded-lg bg-[#0B2B26] text-white text-sm font-medium py-2.5 hover:bg-[#051F20] transition-colors"
             >
               Back to Dashboard
             </button>
@@ -750,28 +726,28 @@ function UploadBox({ file, accept, inputRef, onChange, label }) {
     <div
       onClick={() => inputRef.current?.click()}
       className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-        file ? "border-[#1B5E2C] bg-[#1B5E2C]/5" : "border-[#CBD9C8] hover:border-[#1B5E2C] bg-[#FAFAF5]"
+        file ? "border-[#0B2B26] bg-[#0B2B26]/5" : "border-[#235347]/25 hover:border-[#0B2B26] bg-[#DAF1DE]/40"
       }`}
     >
       <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={onChange} />
       {file ? (
         <div className="flex items-center justify-center gap-2">
-          <span className="text-[#1B5E2C] text-xl">📷</span>
+          <span className="text-[#0B2B26] text-xl">📷</span>
           <div className="text-left">
-            <p className="text-sm font-medium text-[#1B5E2C] truncate max-w-[200px]">{file.name}</p>
-            <p className="text-xs text-[#86A18A]">Tap to replace</p>
+            <p className="text-sm font-medium text-[#0B2B26] truncate max-w-[200px]">{file.name}</p>
+            <p className="text-xs text-[#0B2B26]/45">Tap to replace</p>
           </div>
         </div>
       ) : (
         <>
-          <div className="h-10 w-10 rounded-full bg-[#D9E8D5] flex items-center justify-center mx-auto mb-2">
-            <svg viewBox="0 0 20 20" className="h-5 w-5 text-[#1B5E2C]" fill="none">
+          <div className="h-10 w-10 rounded-full bg-[#235347]/15 flex items-center justify-center mx-auto mb-2">
+            <svg viewBox="0 0 20 20" className="h-5 w-5 text-[#0B2B26]" fill="none">
               <path d="M10 4v8M10 4l-3 3M10 4l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M3 14v1a2 2 0 002 2h10a2 2 0 002-2v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </div>
-          <p className="text-sm text-[#5B6478]">{label}</p>
-          <p className="text-xs text-[#86A18A] mt-1">JPG or PNG · Max 10MB</p>
+          <p className="text-sm text-[#0B2B26]/70">{label}</p>
+          <p className="text-xs text-[#0B2B26]/45 mt-1">JPG or PNG · Max 10MB</p>
         </>
       )}
     </div>
@@ -782,15 +758,15 @@ function UploadBox({ file, accept, inputRef, onChange, label }) {
 function ReqUpload({ label, file, uploading, uploaded, error, onChange }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">{label}</label>
       <label className={`flex items-center gap-3 border rounded-xl px-4 py-3 cursor-pointer transition-colors ${
-        uploaded ? "border-[#1B5E2C] bg-[#1B5E2C]/5"
+        uploaded ? "border-[#0B2B26] bg-[#0B2B26]/5"
         : error  ? "border-[#B3492B] bg-[#B3492B]/5"
-        : "border-[#CBD9C8] hover:border-[#1B5E2C] bg-white"
+        : "border-[#235347]/25 hover:border-[#0B2B26] bg-white"
       }`}>
         <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={onChange} />
         <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
-          uploaded ? "bg-[#1B5E2C] text-white" : "bg-[#EFF4ED] text-[#86A18A]"
+          uploaded ? "bg-[#0B2B26] text-white" : "bg-[#DAF1DE]/60 text-[#0B2B26]/45"
         }`}>
           {uploading ? (
             <div className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
@@ -806,10 +782,10 @@ function ReqUpload({ label, file, uploading, uploaded, error, onChange }) {
           )}
         </div>
         <div className="min-w-0">
-          <p className={`text-sm ${uploaded ? "text-[#1B5E2C] font-medium" : "text-[#5B6478]"}`}>
+          <p className={`text-sm ${uploaded ? "text-[#0B2B26] font-medium" : "text-[#0B2B26]/70"}`}>
             {uploaded ? (file?.name ?? "File uploaded") : "Choose file"}
           </p>
-          <p className="text-xs text-[#86A18A]">{uploaded ? "Tap to replace" : "JPG or PNG · Max 10MB"}</p>
+          <p className="text-xs text-[#0B2B26]/45">{uploaded ? "Tap to replace" : "JPG or PNG · Max 10MB"}</p>
         </div>
       </label>
       {error && <Err msg={error} />}
@@ -821,15 +797,15 @@ function ReqUpload({ label, file, uploading, uploaded, error, onChange }) {
 function SummaryRow({ label, value }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2.5">
-      <span className="text-xs text-[#86A18A] w-36 shrink-0">{label}</span>
-      <span className="text-sm text-[#1B5E2C] font-medium">{value ?? "—"}</span>
+      <span className="text-xs text-[#0B2B26]/45 w-36 shrink-0">{label}</span>
+      <span className="text-sm text-[#0B2B26] font-medium">{value ?? "—"}</span>
     </div>
   );
 }
 
 const inputCls = (err) =>
-  `w-full rounded-lg border px-4 py-2.5 text-sm text-[#1B5E2C] placeholder:text-[#A8AEBC] bg-white focus:outline-none focus:ring-2 focus:ring-[#F2BE22] ${
-    err ? "border-[#B3492B]" : "border-[#CBD9C8]"
+  `w-full rounded-lg border px-4 py-2.5 text-sm text-[#0B2B26] placeholder:text-[#8EB69B] bg-white focus:outline-none focus:ring-2 focus:ring-[#8EB69B] ${
+    err ? "border-[#B3492B]" : "border-[#235347]/25"
   }`;
 
 function Err({ msg }) {

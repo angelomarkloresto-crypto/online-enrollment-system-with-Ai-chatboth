@@ -1,17 +1,9 @@
 import { useState, useEffect } from "react";
 
-/**
- * AdminRegister.jsx
- * One-time setup screen for creating the single admin account.
- * Talks to: check_admin_exists.php, admin_register.php
- *
- * NOTE: This assumes the backend bugs below are fixed first:
- *  - admin_register.php: "amins" -> "admins" table name typo
- *  - check_admin_exists.php: $row['total_Admins'] -> $row['total_admins']
- */
-
-const API_BASE = "http://localhost/backend-online-enrollment/admin";
-
+// const API_BASE = "http://localhost/backend-online-enrollment/admin";
+export const getApiBase = () => {
+  return "/backend-online-enrollment/admin";
+};
 export default function AdminRegister() {
   const [checking, setChecking] = useState(true);
   const [adminExists, setAdminExists] = useState(false);
@@ -29,7 +21,7 @@ export default function AdminRegister() {
     let cancelled = false;
     async function checkAdmin() {
       try {
-        const res = await fetch(`${API_BASE}/check_admin_exists.php`);
+        const res = await fetch(`${getApiBase()}/check_admin_exists.php`);
         const data = await res.json();
         if (!cancelled) {
           setAdminExists(Boolean(data.exists ?? data.exist));
@@ -89,7 +81,7 @@ export default function AdminRegister() {
       body.append("email", form.email.trim());
       body.append("password", form.password);
 
-      const res = await fetch(`${API_BASE}/admin_register.php`, {
+      const res = await fetch(`${getApiBase()}/admin_register.php`, {
         method: "POST",
         body,
       });

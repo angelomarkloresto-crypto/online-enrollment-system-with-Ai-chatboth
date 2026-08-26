@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   BrowserRouter, Routes, Route,
   Navigate, useNavigate, useLocation,
@@ -8,8 +9,9 @@ import StudentRegister  from "./pages/student/StudentRegister";
 import StudentLogin     from "./pages/student/StudentLogin";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import EnrollmentForm   from "./pages/student/EnrollmentForm";
-import StudentProfile   from "./pages/student/StudentProfile";
-import StudentTimetable from "./pages/student/StudentTimetable";
+import StudentProfile         from "./pages/student/StudentProfile";
+import StudentTimetable       from "./pages/student/StudentTimetable";
+import DownloadConfirmation   from "./pages/student/DownloadConfirmation";
 import Hirumi from "./pages/AI assistant/Hirumi";
 /**
  * StudentApp.jsx
@@ -161,6 +163,17 @@ const NAV_ALL = [
     ),
   },
   {
+    label: "DL Confirmation",
+    path:  "/student/confirmation",
+    icon:  (active) => (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+        <path d="M12 3v11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M8 19l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M5 7h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
     label: "Profile",
     path:  "/student/profile",
     icon:  (active) => (
@@ -274,7 +287,7 @@ function StudentLayout({ children }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAFAF5]">
+    <div className="student-staff-theme min-h-screen flex flex-col bg-[#FAFAF5]">
 
       {/* ── Desktop sidebar ── */}
       <aside
@@ -342,7 +355,18 @@ function StudentLayout({ children }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1">{children}</main>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.main
+            key={location.pathname}
+            className="flex-1"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.24, ease: "easeOut" }}
+          >
+            {children}
+          </motion.main>
+        </AnimatePresence>
       </div>
 
       <Hirumi role="student" userId={student?.student_id} />
@@ -466,6 +490,16 @@ function StudentRoutes() {
           <ProtectedRoute>
             <StudentLayout>
               <StudentProfile />
+            </StudentLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/confirmation"
+        element={
+          <ProtectedRoute>
+            <StudentLayout>
+              <DownloadConfirmation />
             </StudentLayout>
           </ProtectedRoute>
         }

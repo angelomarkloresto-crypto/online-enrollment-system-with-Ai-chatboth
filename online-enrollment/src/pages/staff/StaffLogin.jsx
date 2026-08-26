@@ -1,18 +1,7 @@
 import { useState } from "react";
 
-/**
- * StaffLogin.jsx
- * Talks to: /staff/staff_login.php
- *
- * Backend bugs to fix before this works:
- *  - $emai typo on line 5 — should be $email
- *  - Returns "staff-id" (hyphen) — should be "staff_id" (underscore)
- *  - No session_start() — add it at the top if you plan to use PHP sessions
- *  - staff_login.php currently reads POST fields directly, NOT a JSON body,
- *    so this component sends FormData (correct for that file as written).
- */
 
-const API_BASE = "http://localhost/backend-online-enrollment/staff";
+const API_BASE = "/backend-online-enrollment/staff";
 
 export default function StaffLogin({ onLoginSuccess }) {
   const [form, setForm]             = useState({ email: "", password: "" });
@@ -65,7 +54,7 @@ export default function StaffLogin({ onLoginSuccess }) {
           email:      data.email,
         });
       } else {
-        window.location.href = "/StaffDashboard";
+        window.location.href = "/staff/dashboard";
       }
     } catch {
       setErrorMsg("Could not reach the server. Please try again.");

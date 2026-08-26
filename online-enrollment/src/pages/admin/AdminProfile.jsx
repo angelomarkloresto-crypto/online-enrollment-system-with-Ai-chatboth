@@ -1,21 +1,10 @@
 import { useState, useEffect } from "react";
 
-/**
- * AdminProfile.jsx
- * Talks to:
- *  - GET  /admin/get_admin_profile.php?admin_id=X
- *  - POST /admin/update_admin_profile.php  { admin_id, email }
- *  - POST /admin/change_admin_password.php  { admin_id, current_password, new_password }
- *
- * Backend bug fixed to note:
- *  - change_admin_password.php had $smin_id (typo) and the success block was nested
- *    inside the wrong-password branch — meaning it only updated on a wrong password.
- *    Make sure that's corrected before testing the password change form.
- *  - update_admin_profile.php uses "SELECT admins WHERE ..." instead of
- *    "SELECT * FROM admins WHERE ..." — missing "* FROM", will throw a SQL error.
- */
 
-const API_BASE = "http://localhost/backend-online-enrollment/admin";
+// const API_BASE = "http://localhost/backend-online-enrollment/admin";
+export const getApiBase = () => {
+  return "/backend-online-enrollment/admin";
+};
 
 export default function AdminProfile({ adminId }) {
   // Fallback: read admin_id from localStorage if not passed as prop
@@ -25,8 +14,8 @@ export default function AdminProfile({ adminId }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
-  const [activeTab, setActiveTab] = useState("profile"); // "profile" | "password"
-  const [toast, setToast] = useState(null); // { type, text }
+  const [activeTab, setActiveTab] = useState("profile"); 
+  const [toast, setToast] = useState(null); 
 
   useEffect(() => {
     loadProfile();
@@ -48,7 +37,7 @@ export default function AdminProfile({ adminId }) {
     setLoadError(null);
     try {
       const res = await fetch(
-        `${API_BASE}/get_admin_profile.php?admin_id=${resolvedId}`,
+        `${getApiBase()}/get_admin_profile.php?admin_id=${resolvedId}`,
         { credentials: "include" }
       );
       const data = await res.json();
@@ -144,7 +133,7 @@ export default function AdminProfile({ adminId }) {
               <EditProfileForm
                 profile={profile}
                 resolvedId={resolvedId}
-                apiBase={API_BASE}
+                apiBase={getApiBase()}
                 onSuccess={(newEmail) => {
                   setProfile((prev) => ({ ...prev, email: newEmail }));
                   setToast({ type: "success", text: "Profile updated successfully." });
@@ -154,7 +143,7 @@ export default function AdminProfile({ adminId }) {
             ) : (
               <ChangePasswordForm
                 resolvedId={resolvedId}
-                apiBase={API_BASE}
+                apiBase={getApiBase()}
                 onSuccess={() =>
                   setToast({ type: "success", text: "Password changed successfully." })
                 }

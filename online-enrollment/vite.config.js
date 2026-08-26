@@ -8,6 +8,7 @@ export default defineConfig({
             tailwindcss()
   ],
   server: {
+    host: true,
     proxy: {
       // Proxy frontend requests starting with /backend-online-enrollment
       // to the local PHP server. Start your PHP server on port 8000.

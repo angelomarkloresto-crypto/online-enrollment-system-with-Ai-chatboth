@@ -1,5 +1,6 @@
 // import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState, createContext, useContext } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   BrowserRouter, Routes, Route,
   Navigate, useNavigate, useLocation,
@@ -7,11 +8,12 @@ import {
 
 import AdminRegister   from "./pages/admin/AdminRegister";
 import AdminLogin      from "./pages/admin/AdminLogin";
-import AdminDashboard  from "./pages/admin/AdminDashboard";
-import StaffManagement from "./pages/admin/StaffManagement";
-import AdminProfile    from "./pages/admin/AdminProfile";
-import AdminLayout     from "./pages/layouts/AdminLayouts";
-import Hirumi from "./pages/AI assistant/Hirumi";
+import AdminDashboard        from "./pages/admin/AdminDashboard";
+import StaffManagement       from "./pages/admin/StaffManagement";
+import AddAndUpdateSubject   from "./pages/admin/AddAndUpdateSubject";
+import AdminProfile          from "./pages/admin/AdminProfile";
+import AdminLayout           from "./pages/layouts/AdminLayouts";
+import Hirumi                from "./pages/AI assistant/Hirumi";
 
 
 // import AdminLayout from "./pages/layouts/AdminLayouts";
@@ -106,6 +108,16 @@ const NAV = [
         <circle cx="7" cy="6" r="3" stroke={color} strokeWidth="1.5" />
         <path d="M1 17c0-3.314 2.686-6 6-6h.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
         <path d="M13 13l2 2 4-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Strands & Subjects",
+    path: "/subjects",
+    icon: (color) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none">
+        <path d="M5 4.5h10a1.5 1.5 0 011.5 1.5v9A1.5 1.5 0 0115 16.5H5A1.5 1.5 0 013.5 15V6A1.5 1.5 0 015 4.5z" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M7 8h6M7 11h6M7 14h4" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -299,7 +311,18 @@ function SidebarLayout({ children }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1">{children}</main>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.main
+            key={location.pathname}
+            className="flex-1"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.24, ease: "easeOut" }}
+          >
+            {children}
+          </motion.main>
+        </AnimatePresence>
       </div>
       <Hirumi role="admin" userId={adminId} />
     </div>
@@ -327,6 +350,7 @@ function AppRoutes() {
 
       <Route path="/dashboard" element={<ProtectedRoute><SidebarLayout><AdminDashboard /></SidebarLayout></ProtectedRoute>} />
       <Route path="/staff"     element={<ProtectedRoute><SidebarLayout><StaffManagement /></SidebarLayout></ProtectedRoute>} />
+      <Route path="/subjects"  element={<ProtectedRoute><SidebarLayout><AddAndUpdateSubject /></SidebarLayout></ProtectedRoute>} />
       <Route path="/profile"   element={<ProtectedRoute><SidebarLayout><AdminProfile /></SidebarLayout></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to={isLoggedIn ? "/dashboard" : "/login"} replace />} />

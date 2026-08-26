@@ -1,23 +1,9 @@
 import { useState, useEffect } from "react";
 
-/**
- * StaffManagement.jsx
- * Talks to: get_staff.php, create_staff.php, update_staff.php,
- *           delete_staff.php, update_staff_status.php
- *
- * Backend notes:
- *  - get_staff.php returns proper JSON ({ success, message: [...staff] }).
- *  - create_staff.php, update_staff.php, delete_staff.php, update_staff_status.php
- *    all echo plain text instead of JSON, so this page checks response text for
- *    "Error" to decide success/failure. Recommend switching these to
- *    header("Content-Type: application/json") + json_encode(...) for consistency.
- *  - create_staff.php uses die("Email already exists") on duplicate email — this
- *    skips closing the DB connection and breaks the plain-text-success pattern
- *    used elsewhere, but is still handled below as a fail case.
- */
-
-const API_BASE = "http://localhost/backend-online-enrollment/admin";
-
+// const API_BASE = "http://localhost/backend-online-enrollment/admin";
+export const getApiBase = () => {
+  return "/backend-online-enrollment/admin";
+};
 export default function StaffManagement() {
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +29,7 @@ export default function StaffManagement() {
     setLoading(true);
     setLoadError(null);
     try {
-      const res = await fetch(`${API_BASE}/get_staff.php`, {
+      const res = await fetch(`${getApiBase()}/get_staff.php`, {
         credentials: "include",
       });
       const data = await res.json();
@@ -70,7 +56,7 @@ export default function StaffManagement() {
       const body = new FormData();
       body.append("staff_id", member.staff_id);
       body.append("status", nextStatus);
-      const res = await fetch(`${API_BASE}/update_staff_status.php`, {
+      const res = await fetch(`${getApiBase()}/update_staff_status.php`, {
         method: "POST",
         credentials: "include",
         body,
@@ -94,7 +80,7 @@ export default function StaffManagement() {
     try {
       const body = new FormData();
       body.append("staff_id", member.staff_id);
-      const res = await fetch(`${API_BASE}/delete_staff.php`, {
+      const res = await fetch(`${getApiBase()}/delete_staff.php`, {
         method: "POST",
         credentials: "include",
         body,
@@ -315,7 +301,7 @@ export default function StaffManagement() {
         <StaffFormModal
           mode={modalMode}
           staffMember={activeStaff}
-          apiBase={API_BASE}
+          apiBase={getApiBase()}
           onClose={() => setModalMode(null)}
           onSaved={(message) => {
             setModalMode(null);

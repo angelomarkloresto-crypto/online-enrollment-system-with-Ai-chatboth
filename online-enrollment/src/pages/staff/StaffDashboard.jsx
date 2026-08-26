@@ -1,9 +1,10 @@
 import { useState } from "react";
-import EnrollmentManagement from "./ErollmentManagement";
-import StrandsAndSections from "./StrandAndSection";
+import EnrollmentDashboard from "./EnrollmentDashboard";
+import EnrollmentManagement from "./EnrollmentManagement";
+import StrandsAndSections from "./StrandsAndSections";
 
 export default function StaffDashboard() {
-  const [activeView, setActiveView] = useState("enrollments");
+  const [activeView, setActiveView] = useState("dashboard");
 
   return (
     <div className="min-h-screen bg-[#FAFAF5]">
@@ -20,6 +21,17 @@ export default function StaffDashboard() {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveView("dashboard")}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                activeView === "dashboard"
+                  ? "bg-[#1B5E2C] text-white"
+                  : "bg-[#FAFAF5] text-[#1B5E2C] border border-[#D9E8D5]"
+              }`}
+            >
+              Dashboard
+            </button>
             <button
               type="button"
               onClick={() => setActiveView("enrollments")}
@@ -46,8 +58,10 @@ export default function StaffDashboard() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        {activeView === "enrollments" ? <EnrollmentManagement /> : <StrandsAndSections />}
+      <div className={activeView === "dashboard" ? "" : "mx-auto max-w-7xl px-4 py-6 sm:px-6"}>
+        {activeView === "dashboard" && <EnrollmentDashboard />}
+        {activeView === "enrollments" && <EnrollmentManagement />}
+        {activeView === "strands" && <StrandsAndSections />}
       </div>
     </div>
   );

@@ -1,18 +1,7 @@
 import { useState, useEffect } from "react";
 
-/**
- * TimetableManagement.jsx
- * Talks to: /staff/timetable/
- *  - GET  get_all_timetable.php
- *  - GET  get_section_timetable.php?section_id=X
- *  - POST create_timetable_settings.php
- *  - POST save_timetable_subjects.php
- *  - POST generate_timetable.php
- *  - POST update_timetable.php
- *  - POST delete_timetable.php
- */
 
-const API_BASE = "http://localhost/backend-online-enrollment/staff";
+const API_BASE = "/backend-online-enrollment/staff";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 

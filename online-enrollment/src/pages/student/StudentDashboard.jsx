@@ -1,38 +1,25 @@
 import { useState, useEffect } from "react";
 
-/**
- * StudentDashboard.jsx
- * Talks to: GET /student/notifications/get_notifications.php?student_id=X
- *
- * Returns notifications array with:
- *  { type: "success"|"info"|"warning"|"error", title, message }
- *
- * Three notification sources from the backend:
- *  1. Enrollment status (Pending / Approved / Rejected)
- *  2. System enrollment open/closed
- *  3. Timetable available (if approved + timetable exists)
- */
-
-const API_BASE_NOTIFICATIONS = "http://localhost/backend-online-enrollment/student";
+const API_BASE_NOTIFICATIONS = "/backend-online-enrollment/student";
 
 const NOTIFICATION_STYLES = {
   success: {
-    wrapper: "bg-[#1B5E2C]/8 border-[#1B5E2C]/25",
-    icon:    "bg-[#1B5E2C]/15 text-[#1B5E2C]",
-    title:   "text-[#1B5E2C]",
-    dot:     "bg-[#1B5E2C]",
+    wrapper: "bg-[#0B2B26]/8 border-[#0B2B26]/25",
+    icon:    "bg-[#0B2B26]/15 text-[#0B2B26]",
+    title:   "text-[#0B2B26]",
+    dot:     "bg-[#0B2B26]",
   },
   info: {
-    wrapper: "bg-[#F2BE22]/10 border-[#F2BE22]/40",
-    icon:    "bg-[#F2BE22]/20 text-[#8C6B12]",
-    title:   "text-[#8C6B12]",
-    dot:     "bg-[#F2BE22]",
+    wrapper: "bg-[#8EB69B]/10 border-[#8EB69B]/40",
+    icon:    "bg-[#8EB69B]/20 text-[#163832]",
+    title:   "text-[#163832]",
+    dot:     "bg-[#8EB69B]",
   },
   warning: {
-    wrapper: "bg-[#F2BE22]/10 border-[#F2BE22]/40",
-    icon:    "bg-[#F2BE22]/20 text-[#8C6B12]",
-    title:   "text-[#8C6B12]",
-    dot:     "bg-[#F2BE22]",
+    wrapper: "bg-[#8EB69B]/10 border-[#8EB69B]/40",
+    icon:    "bg-[#8EB69B]/20 text-[#163832]",
+    title:   "text-[#163832]",
+    dot:     "bg-[#8EB69B]",
   },
   error: {
     wrapper: "bg-[#B3492B]/8 border-[#B3492B]/25",
@@ -104,16 +91,16 @@ export default function StudentDashboard({ onNavigate }) {
     <div className="px-4 sm:px-6 py-6 space-y-6">
 
       {/* ── Hero greeting ── */}
-      <div className="bg-[#1B5E2C] rounded-2xl p-5 sm:p-7 text-[#FAFAF5] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="bg-[#0B2B26] rounded-2xl p-5 sm:p-7 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <p className="text-[#CFE3CE] text-sm mb-1">{greeting},</p>
+          <p className="text-[#DAF1DE] text-sm mb-1">{greeting},</p>
           <h2
-            className="text-2xl sm:text-3xl text-[#FAFAF5]"
+            className="text-2xl sm:text-3xl text-white"
             style={{ fontFamily: "'Fraunces', serif" }}
           >
             {firstName}!
           </h2>
-          <p className="text-[#CFE3CE] text-sm mt-2 max-w-sm">
+          <p className="text-[#DAF1DE] text-sm mt-2 max-w-sm">
             {isApproved
               ? "Your enrollment is approved. Check your timetable below."
               : isPending
@@ -126,16 +113,16 @@ export default function StudentDashboard({ onNavigate }) {
 
         {/* Status chip */}
         <div className={`shrink-0 rounded-xl px-4 py-3 text-center ${
-          isApproved ? "bg-[#F2BE22]/20 border border-[#F2BE22]/30"
+          isApproved ? "bg-[#8EB69B]/20 border border-[#8EB69B]/30"
           : isPending ? "bg-white/10 border border-white/20"
           : isRejected ? "bg-[#B3492B]/30 border border-[#B3492B]/40"
           : "bg-white/10 border border-white/20"
         }`}>
-          <p className="text-xs text-[#CFE3CE] mb-1">Enrollment Status</p>
+          <p className="text-xs text-[#DAF1DE] mb-1">Enrollment Status</p>
           <p className={`text-sm font-medium ${
-            isApproved ? "text-[#F2BE22]"
+            isApproved ? "text-[#8EB69B]"
             : isRejected ? "text-[#F87171]"
-            : "text-[#FAFAF5]"
+            : "text-white"
           }`}>
             {isApproved ? "✓ Approved"
               : isPending ? "⏳ Pending"
@@ -147,14 +134,14 @@ export default function StudentDashboard({ onNavigate }) {
 
       {/* ── Quick actions ── */}
       <section>
-        <p className="text-xs uppercase tracking-[0.15em] text-[#86A18A] mb-3">
+        <p className="text-xs uppercase tracking-[0.15em] text-[#0B2B26]/45 mb-3">
           Quick Actions
         </p>
 
         {notice && (
-          <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-[#F2BE22]/40 bg-[#F2BE22]/10 px-4 py-3 text-sm text-[#8C6B12]">
+          <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-[#8EB69B]/40 bg-[#8EB69B]/10 px-4 py-3 text-sm text-[#163832]">
             <span>{notice}</span>
-            <button onClick={() => setNotice(null)} className="shrink-0 text-[#8C6B12]/70 hover:text-[#8C6B12]" aria-label="Dismiss">✕</button>
+            <button onClick={() => setNotice(null)} className="shrink-0 text-[#163832]/70 hover:text-[#163832]" aria-label="Dismiss">✕</button>
           </div>
         )}
 
@@ -164,7 +151,7 @@ export default function StudentDashboard({ onNavigate }) {
               label:    isApproved ? "Already Enrolled" : isRejected ? "Enroll Again" : hasEnrolled ? "View Enrollment" : "Enroll Now",
               sub:      isApproved ? "Your enrollment is finalized" : isRejected ? "Re-submit your enrollment form" : hasEnrolled ? "Track your application" : "Submit your enrollment form",
               icon:     <EnrollIcon />,
-              color:    isApproved ? "border-[#D9E8D5] opacity-60" : "border-[#D9E8D5] hover:border-[#1B5E2C]",
+              color:    isApproved ? "border-[#235347]/15 opacity-60" : "border-[#235347]/15 hover:border-[#0B2B26]",
               onClick:  handleEnrollClick,
               disabled: false, // stays clickable even when approved, so the notice can actually show
             },
@@ -173,8 +160,8 @@ export default function StudentDashboard({ onNavigate }) {
               sub:      timetableReady ? "Your schedule is ready" : "Available after approval",
               icon:     <TimetableIcon />,
               color:    timetableReady
-                ? "border-[#F2BE22]/50 hover:border-[#F2BE22]"
-                : "border-[#D9E8D5] opacity-60",
+                ? "border-[#8EB69B]/50 hover:border-[#8EB69B]"
+                : "border-[#235347]/15 opacity-60",
               onClick:  () => timetableReady && onNavigate?.("timetable"),
               disabled: !timetableReady,
             },
@@ -182,7 +169,7 @@ export default function StudentDashboard({ onNavigate }) {
               label:    "My Profile",
               sub:      "View and update your info",
               icon:     <ProfileIcon />,
-              color:    "border-[#D9E8D5] hover:border-[#1B5E2C]",
+              color:    "border-[#235347]/15 hover:border-[#0B2B26]",
               onClick:  () => onNavigate?.("profile"),
               disabled: false,
             },
@@ -193,11 +180,11 @@ export default function StudentDashboard({ onNavigate }) {
               disabled={action.disabled}
               className={`bg-white rounded-xl border p-4 text-left transition-colors disabled:cursor-not-allowed ${action.color}`}
             >
-              <div className="h-9 w-9 rounded-lg bg-[#1B5E2C]/8 flex items-center justify-center mb-3 text-[#1B5E2C]">
+              <div className="h-9 w-9 rounded-lg bg-[#0B2B26]/8 flex items-center justify-center mb-3 text-[#0B2B26]">
                 {action.icon}
               </div>
-              <p className="text-sm font-medium text-[#1B5E2C]">{action.label}</p>
-              <p className="text-xs text-[#86A18A] mt-0.5">{action.sub}</p>
+              <p className="text-sm font-medium text-[#0B2B26]">{action.label}</p>
+              <p className="text-xs text-[#0B2B26]/45 mt-0.5">{action.sub}</p>
             </button>
           ))}
         </div>
@@ -206,12 +193,12 @@ export default function StudentDashboard({ onNavigate }) {
       {/* ── Notifications ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs uppercase tracking-[0.15em] text-[#86A18A]">
+          <p className="text-xs uppercase tracking-[0.15em] text-[#0B2B26]/45">
             Notifications
           </p>
           <button
             onClick={loadNotifications}
-            className="text-xs text-[#8C6B12] hover:underline"
+            className="text-xs text-[#163832] hover:underline"
           >
             Refresh
           </button>
@@ -226,18 +213,18 @@ export default function StudentDashboard({ onNavigate }) {
         {loading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl border border-[#D9E8D5] p-4 flex gap-3">
-                <div className="h-9 w-9 rounded-lg bg-[#EFF4ED] animate-pulse shrink-0" />
+              <div key={i} className="bg-white rounded-xl border border-[#235347]/15 p-4 flex gap-3">
+                <div className="h-9 w-9 rounded-lg bg-[#DAF1DE]/60 animate-pulse shrink-0" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-3.5 w-1/3 rounded bg-[#EFF4ED] animate-pulse" />
-                  <div className="h-3 w-2/3 rounded bg-[#EFF4ED] animate-pulse" />
+                  <div className="h-3.5 w-1/3 rounded bg-[#DAF1DE]/60 animate-pulse" />
+                  <div className="h-3 w-2/3 rounded bg-[#DAF1DE]/60 animate-pulse" />
                 </div>
               </div>
             ))}
           </div>
         ) : notifications.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#D9E8D5] p-8 text-center">
-            <p className="text-[#86A18A] text-sm">No notifications yet.</p>
+          <div className="bg-white rounded-xl border border-[#235347]/15 p-8 text-center">
+            <p className="text-[#0B2B26]/45 text-sm">No notifications yet.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -258,7 +245,7 @@ export default function StudentDashboard({ onNavigate }) {
                         {notif.title}
                       </p>
                     </div>
-                    <p className="text-sm text-[#5B6478] leading-relaxed">
+                    <p className="text-sm text-[#0B2B26]/70 leading-relaxed">
                       {notif.message}
                     </p>
                   </div>
@@ -270,15 +257,15 @@ export default function StudentDashboard({ onNavigate }) {
       </section>
 
       {/* ── School info footer ── */}
-      <div className="bg-white rounded-xl border border-[#D9E8D5] p-4 flex items-center gap-3">
+      <div className="bg-white rounded-xl border border-[#235347]/15 p-4 flex items-center gap-3">
         <img
           src="/assets/gogon-hs-logo.png"
           alt="Gogon High School"
-          className="h-10 w-10 rounded-full object-cover ring-1 ring-[#F2BE22] shrink-0"
+          className="h-10 w-10 rounded-full object-cover ring-1 ring-[#8EB69B] shrink-0"
         />
         <div>
-          <p className="text-sm font-medium text-[#1B5E2C]">Gogon High School</p>
-          <p className="text-xs text-[#86A18A]">
+          <p className="text-sm font-medium text-[#0B2B26]">Gogon High School</p>
+          <p className="text-xs text-[#0B2B26]/45">
             Gogon, Legazpi City, Albay · Junior &amp; Senior High School
           </p>
         </div>

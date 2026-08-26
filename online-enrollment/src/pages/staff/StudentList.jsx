@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 
 const gradeOptions = [7, 8, 9, 10, 11, 12];
-const API_BASE = "http://localhost/backend-online-enrollment/staff";
+const API_BASE = "/backend-online-enrollment/staff";
 
 export default function StudentList() {
   const [students, setStudents] = useState([]);
   const [sections, setSections] = useState([]);
   const [strands, setStrands] = useState([]);
   const [selectedGrade, setSelectedGrade] = useState(7);
-  // For JHS this is the "section"; for SHS this is the "block" — both are
-  // just sections.section_name, filtered differently. Kept as one piece of
-  // state since they're the same underlying selection, just labeled
-  // differently in the UI per grade level.
+
   const [selectedSection, setSelectedSection] = useState("");
   const [selectedStrand, setSelectedStrand] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -124,7 +121,7 @@ export default function StudentList() {
 
   const normalizedStudents = useMemo(() =>
     students.map((student) => {
-      const rawId = student.student_id ?? student.id ?? 0;
+      const rawId = student.lrn ?? student.student_id ?? student.id ?? "";
       const rawGrade = student.grade_level ?? student.grade ?? 0;
       const rawSection = student.section_name ?? student.section_assigned ?? student.section ?? "";
       const rawStrand = student.strand_name ?? student.strand ?? null;
@@ -134,7 +131,7 @@ export default function StudentList() {
           .join(" ") || student.name || "Student";
 
       return {
-        id: Number(rawId),
+        id: String(rawId ?? ""),
         enrollmentId: student.enrollment_id ?? null,
         name: fullName,
         grade: Number(rawGrade),
@@ -171,6 +168,37 @@ export default function StudentList() {
   }, [normalizedStudents, selectedGrade, selectedStrand, selectedSection, searchTerm, isSeniorHigh]);
 
   const currentGradeLabel = `Grade ${selectedGrade}`;
+
+  function downloadCurrentView() {
+    if (filteredStudents.length === 0) return;
+
+    const headers = ["LRN", "Student Name", "Grade Level", "Strand", "Section/Block"];
+    const rows = filteredStudents.map((student) => [
+      student.id,
+      student.name,
+      `Grade ${student.grade}`,
+      student.strand || "",
+      student.section || "",
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const viewName = [currentGradeLabel, selectedStrand, selectedSection]
+      .filter(Boolean)
+      .join(" - ")
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-|-$/g, "");
+
+    link.href = url;
+    link.download = `${viewName || "student-list"}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
 
   async function openDetails(enrollmentId) {
     if (!enrollmentId) return;
@@ -222,7 +250,7 @@ export default function StudentList() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by name or ID"
+            placeholder="Search by name or LRN"
             className="w-full rounded-xl border border-[#CBD9C8] bg-white px-4 py-2.5 text-sm text-[#1B5E2C] placeholder:text-[#86A18A] focus:outline-none focus:ring-2 focus:ring-[#F2BE22]"
           />
         </div>
@@ -322,9 +350,22 @@ export default function StudentList() {
               {selectedSection ? ` · ${selectedSection}` : ""}
             </h3>
           </div>
-          <span className="rounded-full bg-[#D9E8D5] px-3 py-1 text-xs font-medium text-[#1B5E2C]">
-            {loading ? "Loading..." : `${filteredStudents.length} students`}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-[#D9E8D5] px-3 py-1 text-xs font-medium text-[#1B5E2C]">
+              {loading ? "Loading..." : `${filteredStudents.length} students`}
+            </span>
+            <button
+              type="button"
+              onClick={downloadCurrentView}
+              disabled={loading || filteredStudents.length === 0}
+              title="Download the students in the current view"
+              aria-label="Download current student list"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#1B5E2C] px-3 py-1.5 text-xs font-medium text-[#1B5E2C] hover:bg-[#D9E8D5] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <DownloadIcon />
+              Download
+            </button>
+          </div>
         </div>
 
         <div className="divide-y divide-[#EFF4ED]">
@@ -349,7 +390,7 @@ export default function StudentList() {
                   <div className="min-w-0">
                     <p className="truncate text-[#1B5E2C] font-medium">{student.name}</p>
                     <p className="text-xs text-[#86A18A]">
-                      ID: {student.id} · {isSeniorHigh ? (student.strand || "Unassigned") : student.section}
+                      LRN: {student.id || "—"} · {isSeniorHigh ? (student.strand || "Unassigned") : student.section}
                     </p>
                   </div>
                 </div>
@@ -393,6 +434,14 @@ export default function StudentList() {
         />
       )}
     </div>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10 2.5v10m0 0 3.5-3.5M10 12.5 6.5 9M3.5 14.5v1.25A1.75 1.75 0 0 0 5.25 17.5h9.5a1.75 1.75 0 0 0 1.75-1.75V14.5" />
+    </svg>
   );
 }
 

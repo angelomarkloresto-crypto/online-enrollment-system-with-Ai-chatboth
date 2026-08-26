@@ -1,19 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 
-/**
- * SectionQrManager.jsx
- * Staff-facing tool to upload/replace each section's adviser QR code.
- *
- * Talks to:
- *  GET  /admin/timetable/get_all_timetable.php            (section list)
- *  GET  /admin/timetable/get_section_qr.php?section_id=X   (current QR)
- *  POST /admin/timetable/upload_section_qr.php             (upload/replace)
- *
- * Adjust ADMIN_BASE below to match wherever these actually live —
- * they're siblings of upload_section_qr.php in your project.
- */
-
-const ADMIN_BASE = "http://localhost/backend-online-enrollment/staff";
+const ADMIN_BASE = "/backend-online-enrollment/staff";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB, matches the backend limit

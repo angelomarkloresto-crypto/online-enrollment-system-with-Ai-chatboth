@@ -1,0 +1,1 @@
+const SERVER_IP = import.meta.env.VITE_SERVER_IP || "192.168.43.171";

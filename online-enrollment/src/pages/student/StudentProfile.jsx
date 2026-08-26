@@ -1,17 +1,7 @@
 import { useState, useEffect } from "react";
 
-/**
- * StudentProfile.jsx
- * Talks to:
- *  GET  /student/get_student_profile.php?student_id=X
- *  POST /student/update_student_profile.php
- *  POST /student/change_student_password.php
- *
- * Note: DB column is "guardian_relationship" — correct spelling.
- * Matches the students table column guardian_relationship.
- */
 
-const API_BASE = "http://localhost/backend-online-enrollment/student";
+const API_BASE = "/backend-online-enrollment/student";
 
 const SUFFIXES = ["", "Jr.", "Sr.", "II", "III", "IV"];
 
@@ -54,8 +44,8 @@ export default function StudentProfile() {
     <div className="px-4 sm:px-6 py-6 space-y-5">
       {/* Header */}
       <div>
-        <p className="text-xs uppercase tracking-[0.15em] text-[#8C6B12] mb-1">Student Portal</p>
-        <h2 className="text-xl sm:text-2xl text-[#1B5E2C]" style={{ fontFamily: "'Fraunces', serif" }}>
+        <p className="text-xs uppercase tracking-[0.15em] text-[#163832] mb-1">Student Portal</p>
+        <h2 className="text-xl sm:text-2xl text-[#0B2B26]" style={{ fontFamily: "'Fraunces', serif" }}>
           My Profile
         </h2>
       </div>
@@ -67,30 +57,30 @@ export default function StudentProfile() {
       )}
 
       {loading ? (
-        <div className="bg-white rounded-2xl border border-[#D9E8D5] p-6 space-y-3">
+        <div className="bg-white rounded-2xl border border-[#235347]/15 p-6 space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-4 rounded bg-[#EFF4ED] animate-pulse" style={{ width: `${50 + i * 9}%` }} />
+            <div key={i} className="h-4 rounded bg-[#DAF1DE]/60 animate-pulse" style={{ width: `${50 + i * 9}%` }} />
           ))}
         </div>
       ) : profile ? (
         <>
           {/* Identity card */}
-          <div className="bg-[#1B5E2C] rounded-2xl p-5 sm:p-6 flex items-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-[#F2BE22] flex items-center justify-center shrink-0">
-              <span className="text-[#1B5E2C] text-2xl font-bold" style={{ fontFamily: "'Fraunces', serif" }}>
+          <div className="bg-[#0B2B26] rounded-2xl p-5 sm:p-6 flex items-center gap-4">
+            <div className="h-14 w-14 rounded-full bg-[#8EB69B] flex items-center justify-center shrink-0">
+              <span className="text-[#0B2B26] text-2xl font-bold" style={{ fontFamily: "'Fraunces', serif" }}>
                 {profile.first_name?.[0]?.toUpperCase() ?? "S"}
               </span>
             </div>
             <div className="min-w-0">
-              <p className="text-[#CFE3CE] text-xs mb-0.5">Student</p>
-              <p className="text-[#FAFAF5] font-medium truncate">{fullName}</p>
-              <p className="text-[#CFE3CE] text-xs mt-0.5">LRN: {profile.lrn ?? "—"}</p>
-              <p className="text-[#CFE3CE] text-xs">{profile.gmail ?? "—"}</p>
+              <p className="text-[#DAF1DE] text-xs mb-0.5">Student</p>
+              <p className="text-white font-medium truncate">{fullName}</p>
+              <p className="text-[#DAF1DE] text-xs mt-0.5">LRN: {profile.lrn ?? "—"}</p>
+              <p className="text-[#DAF1DE] text-xs">{profile.gmail ?? "—"}</p>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-[#D9E8D5]">
+          <div className="flex border-b border-[#235347]/15">
             {[
               { key: "profile",  label: "Edit Profile"     },
               { key: "password", label: "Change Password"  },
@@ -100,8 +90,8 @@ export default function StudentProfile() {
                 onClick={() => setActiveTab(tab.key)}
                 className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
                   activeTab === tab.key
-                    ? "border-[#1B5E2C] text-[#1B5E2C]"
-                    : "border-transparent text-[#86A18A] hover:text-[#1B5E2C]"
+                    ? "border-[#0B2B26] text-[#0B2B26]"
+                    : "border-transparent text-[#0B2B26]/45 hover:text-[#0B2B26]"
                 }`}
               >
                 {tab.label}
@@ -133,7 +123,7 @@ export default function StudentProfile() {
 
       {toast && (
         <div className={`fixed bottom-5 left-1/2 -translate-x-1/2 rounded-lg px-4 py-2.5 text-sm shadow-lg z-50 whitespace-nowrap ${
-          toast.type === "success" ? "bg-[#1B5E2C] text-white" : "bg-[#B3492B] text-white"
+          toast.type === "success" ? "bg-[#0B2B26] text-white" : "bg-[#B3492B] text-white"
         }`}>
           {toast.text}
         </div>
@@ -224,21 +214,21 @@ function EditProfileForm({ profile, studentId, apiBase, onSuccess, onError }) {
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-3">
       {SECTIONS.map((sec) => (
-        <div key={sec.key} className="bg-white rounded-2xl border border-[#D9E8D5] overflow-hidden">
+        <div key={sec.key} className="bg-white rounded-2xl border border-[#235347]/15 overflow-hidden">
           {/* Accordion header */}
           <button
             type="button"
             onClick={() => setOpenSection((p) => p === sec.key ? null : sec.key)}
             className="w-full flex items-center justify-between px-5 py-4 text-left"
           >
-            <span className="text-sm font-medium text-[#1B5E2C]">{sec.label}</span>
-            <svg viewBox="0 0 20 20" className={`h-4 w-4 text-[#86A18A] transition-transform ${openSection === sec.key ? "rotate-180" : ""}`} fill="none">
+            <span className="text-sm font-medium text-[#0B2B26]">{sec.label}</span>
+            <svg viewBox="0 0 20 20" className={`h-4 w-4 text-[#0B2B26]/45 transition-transform ${openSection === sec.key ? "rotate-180" : ""}`} fill="none">
               <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
 
           {openSection === sec.key && (
-            <div className="px-5 pb-5 pt-1 space-y-4 border-t border-[#EFF4ED]">
+            <div className="px-5 pb-5 pt-1 space-y-4 border-t border-[#DAF1DE]/60">
 
               {sec.key === "personal" && (
                 <>
@@ -247,7 +237,7 @@ function EditProfileForm({ profile, studentId, apiBase, onSuccess, onError }) {
                     <Field label="Last Name *"   name="last_name"   value={form.last_name}   error={errors.last_name}   onChange={handleChange} />
                     <Field label="Middle Name"   name="middle_name" value={form.middle_name} onChange={handleChange} />
                     <div>
-                      <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">Suffix</label>
+                      <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">Suffix</label>
                       <select name="suffix" value={form.suffix} onChange={handleChange} className={inputCls()}>
                         {SUFFIXES.map((s) => <option key={s} value={s}>{s || "— None —"}</option>)}
                       </select>
@@ -256,7 +246,7 @@ function EditProfileForm({ profile, studentId, apiBase, onSuccess, onError }) {
                   <Field label="Contact Number" name="contact_no" value={form.contact_no} error={errors.contact_no} onChange={handleChange} placeholder="09XXXXXXXXX" maxLength={11} />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">Date of Birth</label>
+                      <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">Date of Birth</label>
                       <input type="date" name="date_of_birth" value={form.date_of_birth} onChange={handleChange} className={inputCls()} />
                     </div>
                     <Field label="Age" name="age" type="number" value={form.age} onChange={handleChange} readOnly />
@@ -289,7 +279,7 @@ function EditProfileForm({ profile, studentId, apiBase, onSuccess, onError }) {
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-lg bg-[#1B5E2C] text-white text-sm font-medium py-3 hover:bg-[#164A22] disabled:opacity-60 transition-colors"
+        className="w-full rounded-lg bg-[#0B2B26] text-white text-sm font-medium py-3 hover:bg-[#051F20] disabled:opacity-60 transition-colors"
       >
         {submitting ? "Saving…" : "Save Changes"}
       </button>
@@ -357,13 +347,13 @@ function ChangePasswordForm({ studentId, apiBase, onSuccess, onError }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#D9E8D5] p-5 sm:p-6">
+    <div className="bg-white rounded-2xl border border-[#235347]/15 p-5 sm:p-6">
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
         {/* Current password */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-sm font-medium text-[#1B5E2C]">Current Password</label>
-            <button type="button" onClick={() => setShowCurrent((s) => !s)} className="text-xs text-[#8C6B12]">
+            <label className="text-sm font-medium text-[#0B2B26]">Current Password</label>
+            <button type="button" onClick={() => setShowCurrent((s) => !s)} className="text-xs text-[#163832]">
               {showCurrent ? "Hide" : "Show"}
             </button>
           </div>
@@ -379,8 +369,8 @@ function ChangePasswordForm({ studentId, apiBase, onSuccess, onError }) {
         {/* New password */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-sm font-medium text-[#1B5E2C]">New Password</label>
-            <button type="button" onClick={() => setShowNew((s) => !s)} className="text-xs text-[#8C6B12]">
+            <label className="text-sm font-medium text-[#0B2B26]">New Password</label>
+            <button type="button" onClick={() => setShowNew((s) => !s)} className="text-xs text-[#163832]">
               {showNew ? "Hide" : "Show"}
             </button>
           </div>
@@ -399,14 +389,14 @@ function ChangePasswordForm({ studentId, apiBase, onSuccess, onError }) {
                 { label: "Contains a number",          done: rules.number },
               ].map((r) => (
                 <div key={r.label} className="flex items-center gap-2">
-                  <span className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center shrink-0 ${r.done ? "bg-[#1B5E2C] border-[#1B5E2C]" : "border-[#CBD9C8]"}`}>
+                  <span className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center shrink-0 ${r.done ? "bg-[#0B2B26] border-[#0B2B26]" : "border-[#235347]/25"}`}>
                     {r.done && (
                       <svg viewBox="0 0 10 10" className="h-2 w-2">
                         <path d="M2 5l2 2 4-3" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     )}
                   </span>
-                  <span className={`text-xs ${r.done ? "text-[#1B5E2C]" : "text-[#86A18A]"}`}>{r.label}</span>
+                  <span className={`text-xs ${r.done ? "text-[#0B2B26]" : "text-[#0B2B26]/45"}`}>{r.label}</span>
                 </div>
               ))}
             </div>
@@ -415,7 +405,7 @@ function ChangePasswordForm({ studentId, apiBase, onSuccess, onError }) {
 
         {/* Confirm password */}
         <div>
-          <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">Confirm New Password</label>
+          <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">Confirm New Password</label>
           <input
             name="confirm_password" type="password"
             value={form.confirm_password} onChange={handleChange}
@@ -427,7 +417,7 @@ function ChangePasswordForm({ studentId, apiBase, onSuccess, onError }) {
 
         <button
           type="submit" disabled={submitting}
-          className="w-full rounded-lg bg-[#1B5E2C] text-white text-sm font-medium py-2.5 hover:bg-[#164A22] disabled:opacity-60 transition-colors"
+          className="w-full rounded-lg bg-[#0B2B26] text-white text-sm font-medium py-2.5 hover:bg-[#051F20] disabled:opacity-60 transition-colors"
         >
           {submitting ? "Updating…" : "Change Password"}
         </button>
@@ -440,11 +430,11 @@ function ChangePasswordForm({ studentId, apiBase, onSuccess, onError }) {
 function Field({ label, name, value, onChange, error, placeholder, type = "text", readOnly, maxLength }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">{label}</label>
       <input
         name={name} type={type} value={value} onChange={onChange}
         placeholder={placeholder} readOnly={readOnly} maxLength={maxLength}
-        className={`${inputCls(error)} ${readOnly ? "bg-[#FAFAF5] text-[#86A18A] cursor-not-allowed" : ""}`}
+        className={`${inputCls(error)} ${readOnly ? "bg-[#DAF1DE]/40 text-[#0B2B26]/45 cursor-not-allowed" : ""}`}
       />
       {error && <Err msg={error} />}
     </div>
@@ -452,8 +442,8 @@ function Field({ label, name, value, onChange, error, placeholder, type = "text"
 }
 
 const inputCls = (err) =>
-  `w-full rounded-lg border px-4 py-2.5 text-sm text-[#1B5E2C] placeholder:text-[#A8AEBC] bg-white focus:outline-none focus:ring-2 focus:ring-[#F2BE22] ${
-    err ? "border-[#B3492B]" : "border-[#CBD9C8]"
+  `w-full rounded-lg border px-4 py-2.5 text-sm text-[#0B2B26] placeholder:text-[#8EB69B] bg-white focus:outline-none focus:ring-2 focus:ring-[#8EB69B] ${
+    err ? "border-[#B3492B]" : "border-[#235347]/25"
   }`;
 
 function Err({ msg }) {

@@ -1,18 +1,8 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 
-/**
- * StrandsAndSections.jsx
- * Talks to:
- *  Strands: /staff/get_strand.php, create_strand.php, update_strand.php, delete_strand.php
- *  Sections: /staff/get_sections.php, create_section.php, update_section.php, delete_section.php
- *
- * Backend bugs to fix:
- *  - get_strand.php: "SELECT FROM strands" → "SELECT * FROM strands"
- *  - create_strand.php: inserts into "strand" → should be "strands"
- *  - create_strand.php: "messgae" typo in duplicate-check response key
- */
 
-const API_BASE = "http://localhost/backend-online-enrollment/staff";
+const API_BASE = "/backend-online-enrollment/staff";
 
 const GRADE_LEVELS = [
   { value: "7",  label: "Grade 7",  type: "JHS" },
@@ -22,6 +12,16 @@ const GRADE_LEVELS = [
   { value: "11", label: "Grade 11", type: "SHS" },
   { value: "12", label: "Grade 12", type: "SHS" },
 ];
+
+const listBounce = {
+  hidden: { opacity: 0, y: 18, scale: 0.96 },
+  visible: (index = 0) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { delay: index * 0.07, type: "spring", stiffness: 280, damping: 17 },
+  }),
+};
 
 export default function StrandsAndSections() {
   const [activeTab, setActiveTab] = useState("strands");
@@ -177,7 +177,7 @@ function StrandsTab({ onToast }) {
               </tr>
             ) : (
               strands.map((strand, idx) => (
-                <tr key={strand.strand_id} className="border-t border-[#EFF4ED] hover:bg-[#FAFAF5]">
+                <motion.tr key={strand.strand_id} custom={idx} initial="hidden" animate="visible" variants={listBounce} whileHover={{ x: 5 }} className="border-t border-[#EFF4ED] hover:bg-[#FAFAF5]">
                   <td className="px-5 py-3.5 text-[#86A18A]">{idx + 1}</td>
                   <td className="px-5 py-3.5 text-[#1B5E2C] font-medium">
                     {strand.strand_name}
@@ -196,7 +196,7 @@ function StrandsTab({ onToast }) {
                       Delete
                     </button>
                   </td>
-                </tr>
+                </motion.tr>
               ))
             )}
           </tbody>
@@ -396,8 +396,8 @@ function SectionsTab({ onToast }) {
                 </td>
               </tr>
             ) : (
-              filtered.map((sec) => (
-                <tr key={sec.section_id} className="border-t border-[#EFF4ED] hover:bg-[#FAFAF5]">
+              filtered.map((sec, idx) => (
+                <motion.tr key={sec.section_id} custom={idx} initial="hidden" animate="visible" variants={listBounce} whileHover={{ x: 5 }} className="border-t border-[#EFF4ED] hover:bg-[#FAFAF5]">
                   <td className="px-5 py-3.5 text-[#1B5E2C] font-medium">
                     {sec.section_name}
                   </td>
@@ -427,7 +427,7 @@ function SectionsTab({ onToast }) {
                       Delete
                     </button>
                   </td>
-                </tr>
+                </motion.tr>
               ))
             )}
           </tbody>
@@ -448,8 +448,8 @@ function SectionsTab({ onToast }) {
             No sections found.
           </div>
         ) : (
-          filtered.map((sec) => (
-            <div key={sec.section_id} className="bg-white rounded-xl border border-[#D9E8D5] p-4">
+          filtered.map((sec, idx) => (
+            <motion.div key={sec.section_id} custom={idx} initial="hidden" animate="visible" variants={listBounce} whileHover={{ y: -5, scale: 1.02 }} className="bg-white rounded-xl border border-[#D9E8D5] p-4">
               <div className="flex justify-between items-start gap-2 mb-2">
                 <div>
                   <p className="text-[#1B5E2C] font-medium">{sec.section_name}</p>
@@ -476,7 +476,7 @@ function SectionsTab({ onToast }) {
                   Delete
                 </button>
               </div>
-            </div>
+            </motion.div>
           ))
         )}
       </div>
@@ -699,7 +699,12 @@ function Modal({ title, onClose, children, wide = false }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className={`relative bg-white rounded-2xl shadow-xl w-full ${wide ? "max-w-lg" : "max-w-sm"} max-h-[90vh] overflow-y-auto`}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.78, y: 34, rotate: -1.5 }}
+        animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
+        transition={{ type: "spring", stiffness: 280, damping: 17 }}
+        className={`relative bg-white rounded-2xl shadow-xl w-full ${wide ? "max-w-lg" : "max-w-sm"} max-h-[90vh] overflow-y-auto`}
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#D9E8D5] sticky top-0 bg-white z-10">
           <h2 className="text-lg text-[#1B5E2C]" style={{ fontFamily: "'Fraunces', serif" }}>
             {title}
@@ -712,7 +717,7 @@ function Modal({ title, onClose, children, wide = false }) {
           </button>
         </div>
         <div className="px-6 py-5">{children}</div>
-      </div>
+      </motion.div>
     </div>
   );
 }

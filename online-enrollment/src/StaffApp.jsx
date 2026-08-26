@@ -1,16 +1,19 @@
 import { useState, createContext, useContext } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   BrowserRouter, Routes, Route,
   Navigate, useNavigate, useLocation,
 } from "react-router-dom";
 
 import StaffLogin          from "./pages/staff/StaffLogin";
+import StaffDashboard from "./pages/staff/StaffDashboard";
 import EnrollmentManagement from "./pages/staff/EnrollmentManagement";
 import StudentList         from "./pages/staff/StudentList";
 import StrandsAndSections   from "./pages/staff/StrandsAndSections";
 import TimetableManagement from "./pages/staff/TimetableManagement";
 import Hirumi from "./pages/AI assistant/Hirumi";
 import SectionQrManager from "./pages/staff/SectionQrManager";
+
 
 
 /**
@@ -81,6 +84,16 @@ function ProtectedRoute({ children }) {
 
 /* ── Nav items ────────────────────────────────────────────────── */
 const NAV = [
+  {
+    label: "Dashboard",
+    path:  "/staff/dashboard",
+    icon:  (color) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none">
+        <path d="M3 12.5V8.5A1.5 1.5 0 0 1 4.5 7H8v9H4.5A1.5 1.5 0 0 1 3 14.5v-2ZM8 7h7.5A1.5 1.5 0 0 1 17 8.5v6A1.5 1.5 0 0 1 15.5 16H8V7Z" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M8 10h7M8 13h7" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
   {
     label: "Timetable",
     path:  "/staff/timetable",
@@ -328,7 +341,18 @@ function StaffSidebarLayout({ children }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1">{children}</main>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.main
+            key={location.pathname}
+            className="flex-1"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.24, ease: "easeOut" }}
+          >
+            {children}
+          </motion.main>
+        </AnimatePresence>
       </div>
       <Hirumi role="staff" userId={staff?.staff_id} />
     </div>
@@ -356,12 +380,22 @@ function StaffRoutes() {
         path="/staff/login"
         element={
           isLoggedIn
-            ? <Navigate to="/staff/enrollments" replace />
+            ? <Navigate to="/staff/dashboard" replace />
             : <StaffLogin onLoginSuccess={login} />
         }
       />
 
       {/* Protected */}
+      <Route
+        path="/staff/dashboard"
+        element={
+          <ProtectedRoute>
+            <StaffSidebarLayout>
+              <StaffDashboard />
+            </StaffSidebarLayout>
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/staff/enrollments"
         element={
@@ -417,13 +451,13 @@ function StaffRoutes() {
       <Route
         path="/staff"
         element={
-          <Navigate to={isLoggedIn ? "/staff/enrollments" : "/staff/login"} replace />
+          <Navigate to={isLoggedIn ? "/staff/dashboard" : "/staff/login"} replace />
         }
       />
       <Route
         path="*"
         element={
-          <Navigate to={isLoggedIn ? "/staff/enrollments" : "/staff/login"} replace />
+          <Navigate to={isLoggedIn ? "/staff/dashboard" : "/staff/login"} replace />
         }
       />
     </Routes>

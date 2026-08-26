@@ -1,21 +1,8 @@
 import { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
-/**
- * EnrollmentManagement.jsx
- * Talks to:
- *  - GET  /staff/get_pending_enrollments.php
- *  - GET  /staff/get_student_details.php?enrollment_id=X
- *  - POST /staff/approve_enrollment.php  { enrollment_id }
- *  - POST /staff/reject_enrollment.php   { enrollment_id }
- *
- * Backend bugs to fix:
- *  - approve_enrollment.php: "applicatio/json" typo, "SELCT" typo,
- *    incomplete SELECT/UPDATE queries, missing bind values. Needs full rewrite.
- *  - reject_enrollment.php: queries table "enrollment" (missing s),
- *    returns "success" => false even on success — fix to true.
- */
 
-const API_BASE = "http://localhost/backend-online-enrollment/staff";
+const API_BASE = "/backend-online-enrollment/staff";
 
 export default function EnrollmentManagement() {
   const [enrollments, setEnrollments] = useState([]);
@@ -75,7 +62,8 @@ export default function EnrollmentManagement() {
   // Filters
   const filtered = enrollments.filter((e) => {
     const q = search.trim().toLowerCase();
-    const matchSearch = !q || String(e.student_id).includes(q) ||
+    const lrnValue = e.lrn ?? e.student_id ?? "";
+    const matchSearch = !q || String(lrnValue).includes(q) ||
       e.grade_level?.toString().includes(q) ||
       e.student_type?.toLowerCase().includes(q);
     const matchLevel =
@@ -86,9 +74,19 @@ export default function EnrollmentManagement() {
   });
 
   return (
-    <div className="px-4 sm:px-6 py-6 space-y-5">
+    <motion.div
+      className="px-4 sm:px-6 py-6 space-y-5"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35 }}
+    >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <motion.div
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45 }}
+      >
         <div>
           <p className="text-xs uppercase tracking-[0.15em] text-[#8C6B12] mb-1">
             Staff Portal
@@ -106,15 +104,20 @@ export default function EnrollmentManagement() {
         >
           <RefreshIcon /> Refresh
         </button>
-      </div>
+      </motion.div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <motion.div
+        className="flex flex-col sm:flex-row gap-3"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.08 }}
+      >
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by student ID or type…"
+          placeholder="Search by LRN or type…"
           className="w-full sm:w-64 rounded-lg border border-[#CBD9C8] px-4 py-2.5 text-sm text-[#1B5E2C] placeholder:text-[#86A18A] bg-white focus:outline-none focus:ring-2 focus:ring-[#F2BE22]"
         />
         <div className="flex gap-2">
@@ -132,28 +135,48 @@ export default function EnrollmentManagement() {
             </button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
-      {loadError && (
-        <div className="rounded-lg border border-[#B3492B]/30 bg-[#B3492B]/10 text-[#B3492B] text-sm px-4 py-3">
-          {loadError}
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {loadError && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -8 }}
+            animate={{ opacity: 1, height: "auto", y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -8 }}
+            className="rounded-lg border border-[#B3492B]/30 bg-[#B3492B]/10 text-[#B3492B] text-sm px-4 py-3"
+          >
+            {loadError}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Count badge */}
-      {!loading && !loadError && (
-        <p className="text-sm text-[#86A18A]">
-          Showing <span className="font-medium text-[#1B5E2C]">{filtered.length}</span> pending{" "}
-          {filtered.length === 1 ? "application" : "applications"}
-        </p>
-      )}
+      <AnimatePresence initial={false} mode="wait">
+        {!loading && !loadError && (
+          <motion.p
+            key={`${search}-${levelFilter}-${filtered.length}`}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 8 }}
+            className="text-sm text-[#86A18A]"
+          >
+            Showing <span className="font-medium text-[#1B5E2C]">{filtered.length}</span> pending{" "}
+            {filtered.length === 1 ? "application" : "applications"}
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       {/* Desktop table */}
-      <div className="hidden md:block bg-white rounded-2xl border border-[#D9E8D5] overflow-hidden">
+      <motion.div
+        className="hidden md:block bg-white rounded-2xl border border-[#D9E8D5] overflow-hidden"
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.14 }}
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[#1B5E2C] text-[#FAFAF5] text-left">
-              <th className="px-5 py-3 font-medium">Student ID</th>
+              <th className="px-5 py-3 font-medium">LRN</th>
               <th className="px-5 py-3 font-medium">Grade Level</th>
               <th className="px-5 py-3 font-medium">Type</th>
               <th className="px-5 py-3 font-medium">Level</th>
@@ -181,13 +204,17 @@ export default function EnrollmentManagement() {
                 </td>
               </tr>
             ) : (
-              filtered.map((e) => (
-                <tr
+              filtered.map((e, index) => (
+                <motion.tr
                   key={e.enrollment_id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -16 }}
+                  transition={{ duration: 0.25, delay: index * 0.04 }}
                   className="border-t border-[#EFF4ED] hover:bg-[#FAFAF5] transition-colors"
                 >
                   <td className="px-5 py-3.5 text-[#1B5E2C] font-medium">
-                    {e.student_id}
+                    {e.lrn ?? e.student_id ?? "—"}
                   </td>
                   <td className="px-5 py-3.5 text-[#5B6478]">
                     Grade {e.grade_level}
@@ -219,15 +246,20 @@ export default function EnrollmentManagement() {
                       Review →
                     </button>
                   </td>
-                </tr>
+                </motion.tr>
               ))
             )}
           </tbody>
         </table>
-      </div>
+      </motion.div>
 
       {/* Mobile cards */}
-      <div className="md:hidden space-y-3">
+      <motion.div
+        className="md:hidden space-y-3"
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.14 }}
+      >
         {loading ? (
           [...Array(3)].map((_, i) => (
             <div key={i} className="bg-white rounded-xl border border-[#D9E8D5] p-4 space-y-2">
@@ -240,12 +272,19 @@ export default function EnrollmentManagement() {
             No pending enrollments found.
           </div>
         ) : (
-          filtered.map((e) => (
-            <div key={e.enrollment_id} className="bg-white rounded-xl border border-[#D9E8D5] p-4">
+          filtered.map((e, index) => (
+            <motion.div
+              key={e.enrollment_id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: -12 }}
+              transition={{ duration: 0.25, delay: index * 0.05 }}
+              className="bg-white rounded-xl border border-[#D9E8D5] p-4"
+            >
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div>
                   <p className="text-[#1B5E2C] font-medium text-sm">
-                    Student ID: {e.student_id}
+                    LRN: {e.lrn ?? e.student_id ?? "—"}
                   </p>
                   <p className="text-[#5B6478] text-xs mt-0.5">
                     Grade {e.grade_level} · {e.student_type ?? "—"}
@@ -267,34 +306,41 @@ export default function EnrollmentManagement() {
                   Review →
                 </button>
               </div>
-            </div>
+            </motion.div>
           ))
         )}
-      </div>
+      </motion.div>
 
       {/* Detail modal */}
-      {selectedId !== null && (
-        <StudentDetailModal
-          enrollmentId={selectedId}
-          apiBase={API_BASE}
-          onClose={() => setSelectedId(null)}
-          onApprove={(id) => handleActionDone(id, "approve")}
-          onReject={(id)  => handleActionDone(id, "reject")}
-          onError={handleActionError}
-        />
-      )}
+      <AnimatePresence>
+        {selectedId !== null && (
+          <StudentDetailModal
+            enrollmentId={selectedId}
+            apiBase={API_BASE}
+            onClose={() => setSelectedId(null)}
+            onApprove={(id) => handleActionDone(id, "approve")}
+            onReject={(id)  => handleActionDone(id, "reject")}
+            onError={handleActionError}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Toast */}
-      {toast && (
-        <div
-          className={`fixed bottom-5 left-1/2 -translate-x-1/2 rounded-lg px-4 py-2.5 text-sm shadow-lg z-50 whitespace-nowrap ${
-            toast.type === "success" ? "bg-[#1B5E2C] text-white" : "bg-[#B3492B] text-white"
-          }`}
-        >
-          {toast.text}
-        </div>
-      )}
-    </div>
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 20, x: "-50%" }}
+            className={`fixed bottom-5 left-1/2 rounded-lg px-4 py-2.5 text-sm shadow-lg z-50 whitespace-nowrap ${
+              toast.type === "success" ? "bg-[#1B5E2C] text-white" : "bg-[#B3492B] text-white"
+            }`}
+          >
+            {toast.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -305,6 +351,7 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
   const [loadErr, setLoadErr]   = useState(null);
   const [acting, setActing]     = useState(null); // "approve" | "reject" | null
   const [confirmReject, setConfirmReject] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -322,7 +369,7 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
       }
     }
     load();
-  }, [enrollmentId]);
+  }, [apiBase, enrollmentId]);
 
   async function handleApprove() {
     setActing("approve");
@@ -342,10 +389,17 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
   }
 
   async function handleReject() {
+    const reason = rejectReason.trim();
+    if (!reason) {
+      onError("Please enter a reason for rejecting this enrollment.");
+      return;
+    }
+
     setActing("reject");
     try {
       const body = new FormData();
       body.append("enrollment_id", enrollmentId);
+      body.append("rejection_reason", reason);
       const res  = await fetch(`${apiBase}/reject_enrollment.php`, {
         method: "POST", credentials: "include", body,
       });
@@ -356,13 +410,31 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
     } finally {
       setActing(null);
       setConfirmReject(false);
+      setRejectReason("");
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-xl overflow-hidden">
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      />
+      <motion.div
+        className="relative bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-xl overflow-hidden"
+        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 24, scale: 0.97 }}
+        transition={{ duration: 0.25 }}
+      >
 
         {/* Modal header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#D9E8D5] shrink-0">
@@ -395,7 +467,7 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
               {/* Student info */}
               <Section title="Student Information">
                 <Row label="Full Name"      value={`${student.first_name ?? ""} ${student.middle_name ?? ""} ${student.last_name ?? ""}`.trim() || "—"} />
-                <Row label="Student ID"     value={student.student_id} />
+                <Row label="LRN"            value={student.lrn ?? student.student_id ?? "—"} />
                 <Row label="Date of Birth"  value={student.date_of_birth ?? "—"} />
                 <Row label="Gender"         value={student.gender ?? "—"} />
                 <Row label="Contact No."    value={student.contact_number ?? "—"} />
@@ -429,15 +501,38 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
 
         {/* Action footer */}
         {!loading && !loadErr && student && (
-          <div className="shrink-0 px-6 py-4 border-t border-[#D9E8D5] bg-[#FAFAF5]">
+          <motion.div
+            className="shrink-0 px-6 py-4 border-t border-[#D9E8D5] bg-[#FAFAF5]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
             {confirmReject ? (
-              <div className="flex flex-col sm:flex-row gap-3 items-center">
-                <p className="text-sm text-[#B3492B] flex-1">
-                  Reject this application? This cannot be undone.
-                </p>
-                <div className="flex gap-2 shrink-0">
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="reject-reason" className="block text-sm font-medium text-[#B3492B] mb-1.5">
+                    Reason for rejection
+                  </label>
+                  <textarea
+                    id="reject-reason"
+                    value={rejectReason}
+                    onChange={(event) => setRejectReason(event.target.value)}
+                    placeholder="Enter the reason the enrollment was rejected"
+                    rows={3}
+                    maxLength={1000}
+                    className="w-full rounded-lg border border-[#B3492B]/40 px-3 py-2 text-sm text-[#5B6478] placeholder:text-[#86A18A] focus:outline-none focus:ring-2 focus:ring-[#B3492B]/30"
+                  />
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 items-center">
+                  <p className="text-sm text-[#B3492B] flex-1">
+                    Reject this application? This cannot be undone.
+                  </p>
+                  <div className="flex gap-2 shrink-0">
                   <button
-                    onClick={() => setConfirmReject(false)}
+                    onClick={() => {
+                      setConfirmReject(false);
+                      setRejectReason("");
+                    }}
                     className="px-4 py-2 rounded-lg border border-[#CBD9C8] text-sm text-[#5B6478] hover:bg-white transition-colors"
                   >
                     Cancel
@@ -449,6 +544,7 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
                   >
                     {acting === "reject" ? "Rejecting…" : "Confirm Reject"}
                   </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -469,10 +565,10 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
                 </button>
               </div>
             )}
-          </div>
+            </motion.div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -527,9 +623,20 @@ function DocRow({ label, path, enrollmentId, fileType }) {
       </div>
 
       {/* Image preview modal */}
+      <AnimatePresence>
       {preview && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70">
-          <div className="relative bg-white rounded-2xl overflow-hidden shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+        <motion.div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="relative bg-white rounded-2xl overflow-hidden shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col"
+            initial={{ opacity: 0, y: 18, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 18, scale: 0.98 }}
+          >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#D9E8D5] shrink-0">
               <p className="text-sm font-medium text-[#1B5E2C]">{label}</p>
@@ -565,9 +672,10 @@ function DocRow({ label, path, enrollmentId, fileType }) {
                 Could not load image. The file may not exist on the server yet.
               </p>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </>
   );
 }

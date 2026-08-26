@@ -1,1 +1,67 @@
 @import "tailwindcss";
+
+/* Shared visual treatment for all three portals. */
+button,
+[class*="rounded-lg"],
+[class*="rounded-xl"],
+[class*="rounded-2xl"],
+[class*="rounded-3xl"] {
+	box-shadow: 0 2px 8px rgb(27 94 44 / 0.08);
+}
+
+button:hover,
+[class*="rounded-lg"]:hover,
+[class*="rounded-xl"]:hover,
+[class*="rounded-2xl"]:hover,
+[class*="rounded-3xl"]:hover {
+	box-shadow: 0 4px 12px rgb(27 94 44 / 0.12);
+}
+
+/* Keep student feature pages on the staff green-and-gold palette. */
+.student-staff-theme [class*="bg-[#0B2B26]"] {
+	background-color: #1B5E2C !important;
+}
+
+.student-staff-theme [class*="bg-[#DAF1DE]"] {
+	background-color: #FAFAF5 !important;
+}
+
+.student-staff-theme [class*="bg-[#8EB69B]"] {
+	background-color: #F2BE22 !important;
+}
+
+.student-staff-theme [class*="bg-[#0B2B26]/"] {
+	background-color: rgb(27 94 44 / 0.1) !important;
+}
+
+.student-staff-theme [class*="bg-[#DAF1DE]/"] {
+	background-color: rgb(250 250 245 / 0.7) !important;
+}
+
+.student-staff-theme [class*="bg-[#8EB69B]/"] {
+	background-color: rgb(242 190 34 / 0.18) !important;
+}
+
+.student-staff-theme [class*="text-[#0B2B26]"] {
+	color: #1B5E2C !important;
+}
+
+.student-staff-theme [class*="text-[#163832]"] {
+	color: #8C6B12 !important;
+}
+
+.student-staff-theme [class*="text-[#DAF1DE]"] {
+	color: #CFE3CE !important;
+}
+
+.student-staff-theme [class*="border-[#235347]"] {
+	border-color: #D9E8D5 !important;
+}
+
+.student-staff-theme [class*="border-[#8EB69B]"] {
+	border-color: #F2BE22 !important;
+}
+
+.student-staff-theme [class*="ring-[#8EB69B]"] {
+	--tw-ring-color: #F2BE22 !important;
+}

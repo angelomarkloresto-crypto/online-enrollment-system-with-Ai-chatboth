@@ -1,20 +1,9 @@
 import { useState, useEffect } from "react";
 
-/**
- * StudentTimetable.jsx
- * Talks to:
- *  GET /student/timetable/get_student_timetable.php?student_id=X
- *  GET /student/timetable/get_student_subjects.php?student_id=X
- *  GET /student/get_section_qr.php?student_id=X
- *
- * Three tabs:
- *  1. Timetable  — schedule grouped by day
- *  2. Subjects   — list of unique subjects
- *  3. Adviser QR — section adviser QR code for contributions
- */
 
-const TIMETABLE_BASE = "http://localhost/backend-online-enrollment/student";
-const STUDENT_BASE   = "http://localhost/backend-online-enrollment/student";
+
+const TIMETABLE_BASE = "/backend-online-enrollment/student";
+const STUDENT_BASE   = "/backend-online-enrollment/student";
 
 const DAY_ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
@@ -118,11 +107,11 @@ export default function StudentTimetable() {
 
       {/* Header */}
       <div>
-        <p className="text-xs uppercase tracking-[0.15em] text-[#8C6B12] mb-1">
+        <p className="text-xs uppercase tracking-[0.15em] text-[#163832] mb-1">
           Student Portal
         </p>
         <h2
-          className="text-xl sm:text-2xl text-[#1B5E2C]"
+          className="text-xl sm:text-2xl text-[#0B2B26]"
           style={{ fontFamily: "'Fraunces', serif" }}
         >
           My Timetable
@@ -131,7 +120,7 @@ export default function StudentTimetable() {
 
       {/* Section info card */}
       {timetable && !ttError && (
-        <div className="bg-[#1B5E2C] rounded-2xl p-4 sm:p-5 flex flex-wrap gap-4 text-[#FAFAF5]">
+        <div className="bg-[#0B2B26] rounded-2xl p-4 sm:p-5 flex flex-wrap gap-4 text-white">
           <InfoChip label="Grade Level" value={`Grade ${timetable.grade_level}`} />
           {timetable.strand && <InfoChip label="Strand" value={timetable.strand} />}
           <InfoChip label="Section"     value={timetable.section} />
@@ -140,15 +129,15 @@ export default function StudentTimetable() {
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-[#D9E8D5]">
+      <div className="flex border-b border-[#235347]/15">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
               activeTab === tab.key
-                ? "border-[#1B5E2C] text-[#1B5E2C]"
-                : "border-transparent text-[#86A18A] hover:text-[#1B5E2C]"
+                ? "border-[#0B2B26] text-[#0B2B26]"
+                : "border-transparent text-[#0B2B26]/45 hover:text-[#0B2B26]"
             }`}
           >
             {tab.label}
@@ -173,8 +162,8 @@ export default function StudentTimetable() {
                     onClick={() => setActiveDay(day)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       activeDay === day
-                        ? "bg-[#1B5E2C] text-white"
-                        : "bg-white border border-[#CBD9C8] text-[#5B6478] hover:border-[#1B5E2C]"
+                        ? "bg-[#0B2B26] text-white"
+                        : "bg-white border border-[#235347]/25 text-[#0B2B26]/70 hover:border-[#0B2B26]"
                     }`}
                   >
                     {day.slice(0, 3)}
@@ -184,7 +173,7 @@ export default function StudentTimetable() {
 
               {/* Schedule list */}
               {daySchedule.length === 0 ? (
-                <p className="text-sm text-[#86A18A] text-center py-8">
+                <p className="text-sm text-[#0B2B26]/45 text-center py-8">
                   No classes on {activeDay}.
                 </p>
               ) : (
@@ -192,32 +181,32 @@ export default function StudentTimetable() {
                   {daySchedule.map((row, i) => (
                     <div
                       key={i}
-                      className="bg-white rounded-xl border border-[#D9E8D5] flex items-center gap-3 sm:gap-4 px-4 py-3"
+                      className="bg-white rounded-xl border border-[#235347]/15 flex items-center gap-3 sm:gap-4 px-4 py-3"
                     >
                       {/* Time block */}
                       <div className="shrink-0 w-24 sm:w-28">
-                        <p className="text-xs font-medium text-[#1B5E2C] tabular-nums">
+                        <p className="text-xs font-medium text-[#0B2B26] tabular-nums">
                           {fmt12(row.start_time)}
                         </p>
-                        <p className="text-xs text-[#86A18A] tabular-nums">
+                        <p className="text-xs text-[#0B2B26]/45 tabular-nums">
                           {fmt12(row.end_time)}
                         </p>
                       </div>
 
                       {/* Divider dot */}
-                      <div className="h-8 w-px bg-[#D9E8D5] shrink-0" />
+                      <div className="h-8 w-px bg-[#235347]/15 shrink-0" />
 
                       {/* Subject */}
                       <div className="flex-1 min-w-0 flex items-center gap-2.5">
-                        <div className="h-2 w-2 rounded-full bg-[#F2BE22] shrink-0" />
-                        <p className="text-sm font-medium text-[#1B5E2C] truncate">
+                        <div className="h-2 w-2 rounded-full bg-[#8EB69B] shrink-0" />
+                        <p className="text-sm font-medium text-[#0B2B26] truncate">
                           {row.subject_name}
                         </p>
                       </div>
 
                       {/* Duration */}
                       <div className="shrink-0 text-right hidden sm:block">
-                        <p className="text-xs text-[#86A18A]">
+                        <p className="text-xs text-[#0B2B26]/45">
                           {getDuration(row.start_time, row.end_time)}
                         </p>
                       </div>
@@ -228,13 +217,13 @@ export default function StudentTimetable() {
 
               {/* Full week summary — desktop table */}
               <div className="hidden md:block mt-4">
-                <p className="text-xs uppercase tracking-[0.15em] text-[#86A18A] mb-3">
+                <p className="text-xs uppercase tracking-[0.15em] text-[#0B2B26]/45 mb-3">
                   Full Week Overview
                 </p>
-                <div className="bg-white rounded-2xl border border-[#D9E8D5] overflow-x-auto">
+                <div className="bg-white rounded-2xl border border-[#235347]/15 overflow-x-auto">
                   <table className="w-full text-xs min-w-[600px]">
                     <thead>
-                      <tr className="bg-[#1B5E2C] text-[#FAFAF5]">
+                      <tr className="bg-[#0B2B26] text-white">
                         <th className="px-4 py-2.5 font-medium text-left w-28">Time</th>
                         {days.map((d) => (
                           <th key={d} className="px-3 py-2.5 font-medium">{d.slice(0,3)}</th>
@@ -243,18 +232,18 @@ export default function StudentTimetable() {
                     </thead>
                     <tbody>
                       {buildWeekGrid(timetable.timetable ?? [], days).map((row, ri) => (
-                        <tr key={ri} className="border-t border-[#EFF4ED]">
-                          <td className="px-4 py-2.5 text-[#86A18A] tabular-nums whitespace-nowrap">
+                        <tr key={ri} className="border-t border-[#DAF1DE]/60">
+                          <td className="px-4 py-2.5 text-[#0B2B26]/45 tabular-nums whitespace-nowrap">
                             {fmt12(row.time)}
                           </td>
                           {days.map((d) => (
                             <td key={d} className="px-3 py-2.5 text-center">
                               {row.cells[d] ? (
-                                <span className="inline-block bg-[#1B5E2C]/8 text-[#1B5E2C] rounded px-2 py-1 leading-tight">
+                                <span className="inline-block bg-[#0B2B26]/8 text-[#0B2B26] rounded px-2 py-1 leading-tight">
                                   {row.cells[d]}
                                 </span>
                               ) : (
-                                <span className="text-[#CBD9C8]">—</span>
+                                <span className="text-[#235347]/25">—</span>
                               )}
                             </td>
                           ))}
@@ -277,25 +266,25 @@ export default function StudentTimetable() {
           ) : subLoading ? (
             <div className="space-y-2">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-12 rounded-xl bg-[#EFF4ED] animate-pulse" />
+                <div key={i} className="h-12 rounded-xl bg-[#DAF1DE]/60 animate-pulse" />
               ))}
             </div>
           ) : (
             <>
-              <p className="text-sm text-[#86A18A]">
-                <span className="font-medium text-[#1B5E2C]">{subjects?.total_subjects ?? 0}</span> subjects
+              <p className="text-sm text-[#0B2B26]/45">
+                <span className="font-medium text-[#0B2B26]">{subjects?.total_subjects ?? 0}</span> subjects
                 {timetable?.section ? ` in ${timetable.section}` : ""}
               </p>
               <div className="space-y-2">
                 {(subjects?.subjects ?? []).map((subj, i) => (
                   <div
                     key={i}
-                    className="bg-white rounded-xl border border-[#D9E8D5] flex items-center gap-3 px-4 py-3"
+                    className="bg-white rounded-xl border border-[#235347]/15 flex items-center gap-3 px-4 py-3"
                   >
-                    <div className="h-8 w-8 rounded-lg bg-[#F2BE22]/20 flex items-center justify-center shrink-0">
-                      <span className="text-xs font-bold text-[#8C6B12]">{i + 1}</span>
+                    <div className="h-8 w-8 rounded-lg bg-[#8EB69B]/20 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-[#163832]">{i + 1}</span>
                     </div>
-                    <p className="text-sm font-medium text-[#1B5E2C]">{subj}</p>
+                    <p className="text-sm font-medium text-[#0B2B26]">{subj}</p>
                   </div>
                 ))}
               </div>
@@ -311,12 +300,12 @@ export default function StudentTimetable() {
             <NotApproved message={qrError} />
           ) : qrLoading ? (
             <div className="space-y-3">
-              <div className="h-64 rounded-2xl bg-[#EFF4ED] animate-pulse" />
-              <div className="h-4 w-1/2 mx-auto rounded bg-[#EFF4ED] animate-pulse" />
+              <div className="h-64 rounded-2xl bg-[#DAF1DE]/60 animate-pulse" />
+              <div className="h-4 w-1/2 mx-auto rounded bg-[#DAF1DE]/60 animate-pulse" />
             </div>
           ) : qrData ? (
             <div className="text-center">
-              <div className="bg-white rounded-2xl border border-[#D9E8D5] p-5 inline-block">
+              <div className="bg-white rounded-2xl border border-[#235347]/15 p-5 inline-block">
                 <img
                   src={`/backend-online-enrollment/uploads/${qrData.qr_code}`}
                   alt="Adviser QR Code"
@@ -324,14 +313,14 @@ export default function StudentTimetable() {
                 />
               </div>
               <div className="mt-4 space-y-1">
-                <p className="text-base font-medium text-[#1B5E2C]">
+                <p className="text-base font-medium text-[#0B2B26]">
                   {qrData.adviser_name ?? "Class Adviser"}
                 </p>
-                <p className="text-sm text-[#86A18A]">
+                <p className="text-sm text-[#0B2B26]/45">
                   {qrData.section_name} · Grade {qrData.grade_level}
                 </p>
                 {qrData.updated_at && (
-                  <p className="text-xs text-[#CBD9C8]">
+                  <p className="text-xs text-[#235347]/25">
                     Updated {new Date(qrData.updated_at).toLocaleDateString("en-PH", {
                       month: "short", day: "numeric", year: "numeric",
                     })}
@@ -341,7 +330,7 @@ export default function StudentTimetable() {
               <a
                 href={`/backend-online-enrollment/uploads/${qrData.qr_code}`}
                 download
-                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[#D9E8D5] text-sm text-[#1B5E2C] px-4 py-2 hover:bg-[#FAFAF5] transition-colors"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[#235347]/15 text-sm text-[#0B2B26] px-4 py-2 hover:bg-[#DAF1DE]/40 transition-colors"
               >
                 <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
                   <path d="M10 4v8M10 12l-3-3M10 12l3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -383,23 +372,23 @@ function buildWeekGrid(rows, days) {
 function InfoChip({ label, value }) {
   return (
     <div>
-      <p className="text-xs text-[#CFE3CE]">{label}</p>
-      <p className="text-sm font-medium text-[#FAFAF5]">{value ?? "—"}</p>
+      <p className="text-xs text-[#DAF1DE]">{label}</p>
+      <p className="text-sm font-medium text-white">{value ?? "—"}</p>
     </div>
   );
 }
 
 function NotApproved({ message }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#D9E8D5] p-8 text-center">
-      <div className="h-14 w-14 rounded-full bg-[#F2BE22]/20 flex items-center justify-center mx-auto mb-4">
-        <svg viewBox="0 0 24 24" className="h-7 w-7 text-[#8C6B12]" fill="none">
+    <div className="bg-white rounded-2xl border border-[#235347]/15 p-8 text-center">
+      <div className="h-14 w-14 rounded-full bg-[#8EB69B]/20 flex items-center justify-center mx-auto mb-4">
+        <svg viewBox="0 0 24 24" className="h-7 w-7 text-[#163832]" fill="none">
           <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
           <path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
       </div>
-      <p className="text-sm font-medium text-[#1B5E2C] mb-1">Not Available</p>
-      <p className="text-sm text-[#86A18A] max-w-xs mx-auto">{message}</p>
+      <p className="text-sm font-medium text-[#0B2B26] mb-1">Not Available</p>
+      <p className="text-sm text-[#0B2B26]/45 max-w-xs mx-auto">{message}</p>
     </div>
   );
 }
@@ -408,13 +397,13 @@ function TimetableSkeleton() {
   return (
     <div className="space-y-2">
       {[...Array(6)].map((_, i) => (
-        <div key={i} className="bg-white rounded-xl border border-[#D9E8D5] flex items-center gap-4 px-4 py-3">
+        <div key={i} className="bg-white rounded-xl border border-[#235347]/15 flex items-center gap-4 px-4 py-3">
           <div className="w-24 space-y-1.5">
-            <div className="h-3 rounded bg-[#EFF4ED] animate-pulse" />
-            <div className="h-3 w-2/3 rounded bg-[#EFF4ED] animate-pulse" />
+            <div className="h-3 rounded bg-[#DAF1DE]/60 animate-pulse" />
+            <div className="h-3 w-2/3 rounded bg-[#DAF1DE]/60 animate-pulse" />
           </div>
-          <div className="h-8 w-px bg-[#D9E8D5]" />
-          <div className="flex-1 h-3 rounded bg-[#EFF4ED] animate-pulse" />
+          <div className="h-8 w-px bg-[#235347]/15" />
+          <div className="flex-1 h-3 rounded bg-[#DAF1DE]/60 animate-pulse" />
         </div>
       ))}
     </div>

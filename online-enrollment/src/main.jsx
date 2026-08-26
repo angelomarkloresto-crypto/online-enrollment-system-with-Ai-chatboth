@@ -4,6 +4,7 @@ import ReactDOM from "react-dom/client";
 import App        from "./App";        // Admin portal  → /dashboard, /staff, /profile
 import StaffApp   from "./StaffApp";   // Staff portal  → /staff/login, /staff/enrollments, etc.
 import StudentApp from "./StudentApp"; // Student portal → /student/login, /student/dashboard, etc.
+import LandingPage from "./LandingPage";
 
 import "./index.css"; // Tailwind base styles
 
@@ -22,6 +23,7 @@ import "./index.css"; // Tailwind base styles
 const path = window.location.pathname.toLowerCase();
 
 const RootComponent =
+  path === "/" || path === "" ? LandingPage :
   path.startsWith("/student") ? StudentApp :
   path.startsWith("/staff") ||
   path === "/stafflogin" ||
