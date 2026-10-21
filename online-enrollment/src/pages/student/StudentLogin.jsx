@@ -1,10 +1,7 @@
-﻿import { useState } from "react";
+import { useState } from "react";
+import { motion } from "framer-motion";
 
-
-// const API_BASE = "http://localhost/backend-online-enrollment/student";
-export const getApiBase = () => {
-  return "/backend-online-enrollment/student";
-};
+export const getApiBase = () => "/backend-online-enrollment/student";
 
 export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
   const [form, setForm] = useState({ gmail: "", password: "" });
@@ -45,9 +42,10 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
         return;
       }
 
-      localStorage.setItem("student_id", String(data.student.student_id));
+      const studentId = data.student?.student_id ?? data.student?.lrn ?? data.student?.email ?? "";
+      localStorage.setItem("student_id", String(studentId));
       localStorage.setItem("student_name", `${data.student.first_name} ${data.student.last_name}`);
-      localStorage.setItem("student_gmail", data.student.gmail);
+      localStorage.setItem("student_gmail", data.student.gmail ?? data.student.email ?? "");
 
       onLoginSuccess?.(data.student);
     } catch {
@@ -58,102 +56,61 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row bg-[#DAF1DE]/40">
-      <div className="md:w-[42%] bg-[#0B2B26] text-white flex flex-col justify-between px-6 sm:px-8 py-10 md:px-12 md:py-14">
-        <div>
+    <div className="flex min-h-screen flex-col bg-white text-[#14251a]">
+      <header className="bg-[#155000] text-white">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <div className="flex items-center gap-3">
             <img
-              src="/assets/gogon-hs-logo.png"
-              alt="Gogon High School seal"
-              className="h-12 w-12 rounded-full bg-white object-cover ring-2 ring-[#8EB69B] shrink-0"
+              src="/assets/gogon-hs-logo.jpg"
+              alt="Gogon High School"
+              className="h-12 w-12 rounded-full bg-white object-cover ring-2 ring-white/70"
             />
-            <div className="leading-snug">
-              <p className="text-sm font-medium">Gogon High School</p>
-              <p className="text-xs text-[#DAF1DE] tracking-wide">
-                Online Enrollment System
-              </p>
+            <div className="leading-tight">
+              <p className="font-semibold">Gogon High School</p>
+              <p className="text-xs text-white/80">Online Enrollment System</p>
             </div>
           </div>
-
-          <h1
-            className="mt-10 text-4xl md:text-[2.6rem] leading-[1.1]"
-            style={{ fontFamily: "'Fraunces', serif" }}
-          >
+          <p className="text-lg font-semibold sm:text-2xl" style={{ fontFamily: "'Fraunces', serif" }}>
             Student Portal
-          </h1>
-          {/* <p className="mt-4 text-[#DAF1DE] text-[15px] leading-relaxed max-w-sm">
-            Sign in to enroll, track your application status, view your
-            class timetable, and manage your student profile.
-          </p> */}
-
-          <div className="mt-8 space-y-3">
-            {[
-              "Submit your enrollment online",
-              "Upload your requirements",
-              "Track application in real time",
-              "View assigned class timetable",
-            ].map((item) => (
-              <div key={item} className="flex items-start gap-2.5">
-                <span className="mt-0.5 h-4 w-4 rounded-full bg-[#8EB69B]/20 border border-[#8EB69B]/50 flex items-center justify-center shrink-0">
-                  <svg viewBox="0 0 10 10" className="h-2 w-2">
-                    <path d="M2 5l2 2 4-3" stroke="#8EB69B" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-                <span className="text-[#DAF1DE] text-sm">{item}</span>
-              </div>
-            ))}
-          </div>
-
-          <button
-            onClick={onGoRegister}
-            className="mt-8 w-full rounded-lg bg-[#8EB69B] text-[#0B2B26] text-sm font-medium py-3 hover:bg-[#235347] transition-colors"
-          >
-            Enroll now
-          </button>
-        </div>
-
-        <div className="mt-12 border-t border-white/10 pt-5">
-          <p className="text-xs text-[#0B2B26]/45">
-            For Junior and Senior High School students of Gogon High School,
-            Legazpi City, Albay.
           </p>
         </div>
-      </div>
+      </header>
 
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-sm">
-          <div className="mb-8">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#163832] mb-2">
-              Student Access
-            </p>
-            <h2
-              className="text-2xl sm:text-3xl text-[#0B2B26]"
-              style={{ fontFamily: "'Fraunces', serif" }}
-            >
+      <main className="flex flex-1 items-center justify-center px-4 py-12 sm:py-16">
+        <motion.section
+          initial={{ opacity: 0, x: 72 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ type: "spring", stiffness: 150, damping: 18 }}
+          className="w-full max-w-md"
+        >
+          <div className="mb-6 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#326b22]">Student Access</p>
+            <h1 className="mt-2 text-3xl font-semibold text-[#14251a]" style={{ fontFamily: "'Fraunces', serif" }}>
               Welcome back
-            </h2>
-            <p className="mt-1 text-sm text-[#0B2B26]/70">
-              Sign in with your Gmail and password.
-            </p>
+            </h1>
+            <p className="mt-2 text-sm text-[#526257]">Sign in with your Gmail and password.</p>
           </div>
 
-          <div className="mb-5 bg-[#8EB69B]/10 border border-[#8EB69B]/30 rounded-lg px-4 py-3 text-sm text-[#163832]">
-            <span className="font-medium">Note:</span> Your password is your <span className="font-medium">LRN (Learner Reference Number)</span>
+          <div className="mb-4 rounded-xl bg-[#155000] px-5 py-4 text-sm leading-relaxed text-white">
+            <span className="font-semibold">New student?</span> Your initial password is your
+            {" "}<span className="font-semibold">LRN (Learner Reference Number)</span>.
           </div>
 
-          <div className="bg-white rounded-2xl border border-[#235347]/15 shadow-sm p-6 sm:p-7">
+          <motion.div
+            initial={{ scale: 0.97 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.35, delay: 0.1 }}
+            className="rounded-2xl border border-[#d7e4d2] bg-[#155000] p-5 text-white shadow-[5px_7px_0_rgba(45,55,40,0.45)] sm:p-8"
+          >
             {errorMsg && (
-              <div className="mb-5 rounded-lg px-4 py-3 text-sm bg-[#B3492B]/10 text-[#B3492B] border border-[#B3492B]/30">
+              <div role="alert" className="mb-5 rounded-lg border border-red-200/50 bg-red-950/30 px-4 py-3 text-sm text-white">
                 {errorMsg}
               </div>
             )}
 
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
               <div>
-                <label
-                  htmlFor="gmail"
-                  className="block text-sm font-medium text-[#0B2B26] mb-1.5"
-                >
+                <label htmlFor="gmail" className="mb-1.5 block text-sm font-medium">
                   Gmail address
                 </label>
                 <input
@@ -164,22 +121,17 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
                   value={form.gmail}
                   onChange={handleChange}
                   placeholder="juan@gmail.com"
-                  className="w-full rounded-lg border border-[#235347]/25 px-4 py-2.5 text-sm text-[#0B2B26] placeholder:text-[#8EB69B] bg-white focus:outline-none focus:ring-2 focus:ring-[#8EB69B] transition-shadow"
+                  className="w-full rounded-lg border border-[#d7e4d2] bg-white px-4 py-3 text-sm text-[#14251a] placeholder:text-[#879489] outline-none transition focus:ring-2 focus:ring-[#a8c437]"
                 />
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label
-                    htmlFor="password"
-                    className="text-sm font-medium text-[#0B2B26]"
-                  >
-                    Password
-                  </label>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label htmlFor="password" className="text-sm font-medium">Password</label>
                   <button
                     type="button"
-                    onClick={() => setShowPassword((s) => !s)}
-                    className="text-xs text-[#163832] hover:text-[#0B2B26] transition-colors"
+                    onClick={() => setShowPassword((show) => !show)}
+                    className="text-xs text-white/80 transition hover:text-white"
                   >
                     {showPassword ? "Hide" : "Show"}
                   </button>
@@ -192,32 +144,60 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
                   value={form.password}
                   onChange={handleChange}
                   placeholder="Enter your password"
-                  className="w-full rounded-lg border border-[#235347]/25 px-4 py-2.5 text-sm text-[#0B2B26] placeholder:text-[#8EB69B] bg-white focus:outline-none focus:ring-2 focus:ring-[#8EB69B] transition-shadow"
+                  className="w-full rounded-lg border border-[#d7e4d2] bg-white px-4 py-3 text-sm text-[#14251a] placeholder:text-[#879489] outline-none transition focus:ring-2 focus:ring-[#a8c437]"
                 />
               </div>
 
-              <button
+              <motion.button
                 type="submit"
                 disabled={submitting}
-                className="w-full rounded-lg bg-[#0B2B26] text-white text-sm font-medium py-3 hover:bg-[#051F20] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                whileHover={{ y: -2 }}
+                whileTap={{ x: 12, scale: 0.97 }}
+                className="w-full rounded-full bg-[#a8bd00] px-4 py-3 text-sm font-semibold text-[#14251a] shadow-[2px_3px_0_rgba(0,0,0,0.25)] transition hover:bg-[#b8cd12] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? "Signing in…" : "Sign in"}
-              </button>
-            </form>
-          </div>
+              </motion.button>
 
-          {/* <p className="mt-5 text-center text-sm text-[#0B2B26]/45">
-            No account yet? {" "}
-            <button
-              type="button"
-              onClick={onGoRegister}
-              className="text-[#163832] font-medium hover:underline"
-            >
-              Register here
-            </button>
-          </p> */}
+              <div className="border-t border-white/20 pt-4 text-center">
+                <p className="text-sm text-white/85">Don’t have an account?</p>
+                <motion.button
+                  type="button"
+                  onClick={onGoRegister}
+                  animate={{ y: [0, -3, 0] }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  whileTap={{ x: 12, scale: 0.96 }}
+                  className="mt-2 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-[#155000] shadow-[2px_3px_0_rgba(0,0,0,0.25)] transition hover:bg-[#eff6e9]"
+                >
+                  Enroll Now
+                </motion.button>
+              </div>
+            </form>
+          </motion.div>
+        </motion.section>
+      </main>
+
+      <footer className="bg-[#155000] text-white">
+        <div className="mx-auto grid max-w-6xl gap-6 px-5 py-6 text-sm sm:grid-cols-2 sm:px-8 lg:grid-cols-3">
+          <div>
+            <h2 className="mb-2 font-semibold">Online student services</h2>
+            <ul className="space-y-1 text-white/85">
+              <li>Submit your enrollment online</li>
+              <li>Upload your requirements</li>
+              <li>Track your application status</li>
+              <li>View your assigned class timetable</li>
+            </ul>
+          </div>
+          <div>
+            <h2 className="mb-2 font-semibold">Gogon High School</h2>
+            <p className="text-white/85">For Junior and Senior High School students</p>
+            <p className="text-white/85">Legazpi City, Albay</p>
+          </div>
+          <div className="lg:text-right">
+            <p className="font-semibold">Online Enrollment System</p>
+            <p className="mt-1 text-white/75">Secure access to your student account</p>
+          </div>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }

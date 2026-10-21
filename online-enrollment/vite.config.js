@@ -11,9 +11,8 @@ export default defineConfig({
     host: true,
     proxy: {
       // Proxy frontend requests starting with /backend-online-enrollment
-      // to the local PHP server. Start your PHP server on port 8000.
+      // to the local Apache/XAMPP PHP backend.
       '/backend-online-enrollment': {
-        // XAMPP serves PHP on port 80 from htdocs; proxy to that origin
         target: 'http://localhost',
         changeOrigin: true,
         secure: false,

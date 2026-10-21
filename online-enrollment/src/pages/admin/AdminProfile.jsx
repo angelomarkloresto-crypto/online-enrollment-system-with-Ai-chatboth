@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 
 
-// const API_BASE = "http://localhost/backend-online-enrollment/admin";
-export const getApiBase = () => {
-  return "/backend-online-enrollment/admin";
-};
+const API_BASE = "http://localhost/backend-online-enrollment/admin";
+// export const getApiBase = () => {
+//   return "http://localhost/backend-online-enrollment/admin";
+// };
 
 export default function AdminProfile({ adminId }) {
   // Fallback: read admin_id from localStorage if not passed as prop
@@ -37,7 +37,7 @@ export default function AdminProfile({ adminId }) {
     setLoadError(null);
     try {
       const res = await fetch(
-        `${getApiBase()}/get_admin_profile.php?admin_id=${resolvedId}`,
+        `${API_BASE}/get_admin_profile.php?admin_id=${resolvedId}`,
         { credentials: "include" }
       );
       const data = await res.json();
@@ -133,7 +133,7 @@ export default function AdminProfile({ adminId }) {
               <EditProfileForm
                 profile={profile}
                 resolvedId={resolvedId}
-                apiBase={getApiBase()}
+                apiBase={API_BASE}
                 onSuccess={(newEmail) => {
                   setProfile((prev) => ({ ...prev, email: newEmail }));
                   setToast({ type: "success", text: "Profile updated successfully." });
@@ -143,7 +143,7 @@ export default function AdminProfile({ adminId }) {
             ) : (
               <ChangePasswordForm
                 resolvedId={resolvedId}
-                apiBase={getApiBase()}
+                apiBase={API_BASE}
                 onSuccess={() =>
                   setToast({ type: "success", text: "Password changed successfully." })
                 }

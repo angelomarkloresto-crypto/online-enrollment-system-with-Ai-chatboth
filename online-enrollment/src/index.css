@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+#root {
+	width: 100%;
+	min-height: 100vh;
+	margin: 0;
+	padding: 0;
+}
+
+html,
+body {
+	min-width: 320px;
+	overflow-x: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+	max-width: 100%;
+}
+
 /* Shared visual treatment for all three portals. */
 button,
 [class*="rounded-lg"],
@@ -64,4 +84,9 @@ button:hover,
 
 .student-staff-theme [class*="ring-[#8EB69B]"] {
 	--tw-ring-color: #F2BE22 !important;
+}
+
+.student-staff-theme {
+	width: 100%;
+	min-width: 0;
 }

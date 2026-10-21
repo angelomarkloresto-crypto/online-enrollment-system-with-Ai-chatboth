@@ -1,22 +1,20 @@
 import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 
 
 
 // const OCR_BASE     = "http://localhost/backend-online-enrollment/ocr";
 // const STUDENT_BASE = "http://localhost/backend-online-enrollment/student";
 // const STAFF_BASE   = "http://localhost/backend-online-enrollment/staff";
-export const getApiBase = () => {
-  return "/backend-online-enrollment/ocr";
-  return "/backend-online-enrollment/student";
-  return "/backend-online-enrollment/staff";
-};
+export const getOcrApiBase = () => "/backend-online-enrollment/ocr";
+export const getStudentApiBase = () => "/backend-online-enrollment/student";
+export const getApiBase = () => "/backend-online-enrollment/student";
 
 
 const STUDENT_TYPES = [
   { value: "New Jr High", label: "New Jr. High (Grade 7)" },
   { value: "Old Jr High",  label: "Old Jr. High" },
   { value: "Senior High",  label: "Senior High" },
-  { value: "Transferee",   label: "Transferee" },
   { value: "Returning",    label: "Returning" },
 ];
 
@@ -27,7 +25,6 @@ const GRADE_OPTIONS_BY_TYPE = {
   "New Jr High": ["7"],
   "Old Jr High":  ["8","9","10"],
   "Senior High":  ["11","12"],
-  "Transferee":   ["7","8","9","10","11","12"],
   "Returning":    ["7","8","9","10","11","12"],
 };
 
@@ -86,13 +83,14 @@ export default function EnrollmentForm({ onBack }) {
   const isSHS         = SHS_GRADES.includes(enrollInfo.grade_level);
   const isNewJrHigh   = enrollInfo.student_type === "New Jr High";
   const isTransferee  = enrollInfo.student_type === "Transferee";
+  const isFirstTimeEnrollment = isNewJrHigh || enrollInfo.student_type === "Senior High";
 
   // Requirements (PSA Birth Certificate + Good Moral) are only needed for
   // students who don't already have a record with the school: a brand new
   // Grade 7, a transferee coming from elsewhere, or a student stepping into
   // Senior High for the first time (Grade 11). Old Jr High, Returning, and
   // continuing Grade 12 students already have these on file.
-  const needsRequirements = isNewJrHigh || isTransferee || (isSHS && enrollInfo.grade_level === "11");
+  const needsRequirements = isFirstTimeEnrollment || isTransferee;
 
   // Requirements step only appears in the wizard when it's actually needed.
   const activeStepKeys = needsRequirements ? ["info","scan","requirements","review"] : ["info","scan","review"];
@@ -138,7 +136,7 @@ export default function EnrollmentForm({ onBack }) {
   async function uploadToTemp(file) {
     const body = new FormData();
     body.append("report_card", file);
-    const res  = await fetch(`${getApiBase()}/scan_report_card.php`, {
+    const res  = await fetch(`${getOcrApiBase()}/scan_report_card.php`, {
       method: "POST", credentials: "include", body,
     });
     const data = await res.json();
@@ -150,6 +148,7 @@ export default function EnrollmentForm({ onBack }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setFrontFile(file);
+    setFrontName("");
     setOcrStatus("uploading");
     setOcrMsg("Uploading report card…");
     setOcrAverage("");
@@ -161,7 +160,7 @@ export default function EnrollmentForm({ onBack }) {
       setOcrMsg("Scanning for your average grade…");
 
       const ocrBody = JSON.stringify({ filename });
-      const ocrRes  = await fetch(`${getApiBase()}/process_ocr.php`, {
+      const ocrRes  = await fetch(`${getOcrApiBase()}/process_ocr.php`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -169,9 +168,17 @@ export default function EnrollmentForm({ onBack }) {
       });
       const ocrData = await ocrRes.json();
       if (ocrData.success) {
-        setOcrAverage(String(ocrData.average));
-        setOcrStatus("done");
-        setOcrMsg(`Average detected: ${ocrData.average}`);
+        const average = Number(
+          ocrData.average ?? ocrData.extracted_data?.average_grade
+        );
+        if (Number.isFinite(average) && average >= 60 && average <= 100) {
+          setOcrAverage(String(average));
+          setOcrStatus("done");
+          setOcrMsg(`Average detected: ${average}`);
+        } else {
+          setOcrStatus("error");
+          setOcrMsg("Could not detect a valid average. Enter it manually.");
+        }
       } else {
         setOcrStatus("error");
         setOcrMsg(ocrData.message ?? "Could not detect average. Enter it manually.");
@@ -231,7 +238,7 @@ export default function EnrollmentForm({ onBack }) {
   ══════════════════════════════════ */
   async function checkEnrollmentStatus() {
     try {
-      const res = await fetch(`${getApiBase()}/check_enrollment_status.php?student_id=${studentId}`, { credentials: "include" });
+      const res = await fetch(`${getStudentApiBase()}/check_enrollment_status.php?student_id=${studentId}`, { credentials: "include" });
       const data = await res.json();
       if (data.success && data.has_enrollment) {
         setEnrollmentStatus(data.enrollment_status);
@@ -263,7 +270,7 @@ export default function EnrollmentForm({ onBack }) {
     setStep(activeStepKeys.length); // jump to the "review" step, wherever it lands
     setAssignedSection(null);
     try {
-      const res  = await fetch(`${getApiBase()}/assign_section.php`, {
+      const res  = await fetch(`${getOcrApiBase()}/assign_section.php`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -302,7 +309,7 @@ export default function EnrollmentForm({ onBack }) {
         good_moral:        goodMoralName || null,
         certificate_of_transfer: cotName || null,
       };
-      const res  = await fetch(`${getApiBase()}/submit_enrollment.php`, {
+      const res  = await fetch(`${getStudentApiBase()}/submit_enrollment.php`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -310,6 +317,16 @@ export default function EnrollmentForm({ onBack }) {
       });
       const data = await res.json();
       setSubmitResult({ success: data.success, message: data.message });
+
+      if (data.success) {
+        localStorage.removeItem("student_id");
+        localStorage.removeItem("student_name");
+        localStorage.removeItem("student_gmail");
+
+        setTimeout(() => {
+          window.location.href = "/student/login";
+        }, 1200);
+      }
     } catch { setSubmitResult({ success: false, message: "Could not reach the server." }); }
     finally  { setSubmitting(false); }
   }
@@ -341,8 +358,8 @@ export default function EnrollmentForm({ onBack }) {
 
         {/* Progress */}
         <div className="mb-6">
-          <div className="h-1.5 w-full bg-[#235347]/15 rounded-full mb-4 overflow-hidden">
-            <div className="h-full bg-[#0B2B26] rounded-full transition-all duration-300" style={{ width: pctW }} />
+          <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-[#8BA77F]/40">
+            <motion.div className="h-full rounded-full bg-[#155000]" animate={{ width: pctW }} transition={{ duration: 0.45 }} />
           </div>
           <div className={`grid gap-1 ${STEPS.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
             {STEPS.map((s, i) => {
@@ -350,13 +367,17 @@ export default function EnrollmentForm({ onBack }) {
               const active = step === n;
               const done   = step > n;
               return (
-                <div key={s.label} className="flex flex-col items-center text-center">
-                  <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium mb-1 transition-colors ${
-                    done ? "bg-[#0B2B26] text-white" : active ? "bg-[#8EB69B] text-[#0B2B26]" : "bg-[#DAF1DE]/60 text-[#0B2B26]/45"
-                  }`}>
+                <div key={s.label} className="flex min-w-0 flex-col items-center text-center">
+                  <motion.div
+                    animate={active ? { y: [0, -5, 0] } : { y: 0 }}
+                    transition={active ? { duration: 1.1, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
+                    className={`mb-1 flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-colors sm:h-10 sm:w-10 ${
+                      done ? "bg-[#155000] text-white" : active ? "bg-[#155000] text-white ring-2 ring-[#a8bd00] ring-offset-2" : "bg-[#8BA77F] text-white"
+                    }`}
+                  >
                     {done ? "✓" : n}
-                  </div>
-                  <p className={`text-xs font-medium hidden sm:block truncate w-full px-1 ${active ? "text-[#0B2B26]" : "text-[#0B2B26]/45"}`}>
+                  </motion.div>
+                  <p className={`w-full truncate px-0.5 text-[9px] font-semibold leading-tight sm:px-1 sm:text-xs ${active ? "text-[#155000]" : "text-[#0B2B26]/65"}`}>
                     {s.label}
                   </p>
                 </div>
@@ -366,7 +387,13 @@ export default function EnrollmentForm({ onBack }) {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl border border-[#235347]/15 shadow-sm p-6">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="rounded-2xl border border-[#718e68] bg-[#8BA77F] p-4 shadow-[5px_7px_0_rgba(45,55,40,0.35)] sm:p-6"
+        >
           <div className="mb-5">
             <h3 className="text-lg font-medium text-[#0B2B26]" style={{ fontFamily: "'Fraunces', serif" }}>
               Step {step} — {STEPS[step-1].label}
@@ -427,7 +454,7 @@ export default function EnrollmentForm({ onBack }) {
                 <p className="text-xs text-[#163832] bg-[#8EB69B]/10 border border-[#8EB69B]/30 rounded-lg px-3 py-2">
                   {isTransferee
                     ? "As a transferee, you'll need to upload your report card and requirements (PSA Birth Certificate, Good Moral, and Certificate of Transfer)."
-                    : "You'll need to upload your requirements (PSA Birth Certificate and Good Moral) since this is your first record with the school."}
+                    : "First-time enrollment requires a PSA Birth Certificate and Good Moral Certificate, in addition to your report card."}
                 </p>
               )}
 
@@ -707,14 +734,11 @@ export default function EnrollmentForm({ onBack }) {
           )}
 
           {submitResult?.success && (
-            <button
-              onClick={onBack}
-              className="w-full mt-6 rounded-lg bg-[#0B2B26] text-white text-sm font-medium py-2.5 hover:bg-[#051F20] transition-colors"
-            >
-              Back to Dashboard
-            </button>
+            <div className="mt-6 rounded-lg border border-[#0B2B26]/20 bg-[#0B2B26]/5 px-4 py-3 text-sm text-[#0B2B26]">
+              Redirecting to the login page to sign in with your Gmail and LRN password…
+            </div>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   );
@@ -722,73 +746,70 @@ export default function EnrollmentForm({ onBack }) {
 
 /* ── Upload Box ───────────────────────────────────────────────── */
 function UploadBox({ file, accept, inputRef, onChange, label }) {
+  const cameraInputRef = useRef(null);
   return (
-    <div
-      onClick={() => inputRef.current?.click()}
-      className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-        file ? "border-[#0B2B26] bg-[#0B2B26]/5" : "border-[#235347]/25 hover:border-[#0B2B26] bg-[#DAF1DE]/40"
+    <motion.div
+      whileHover={{ y: -3 }}
+      transition={{ duration: 0.18 }}
+      className={`flex min-h-44 flex-col items-center justify-between rounded-2xl border-2 p-4 text-center text-white shadow-[4px_5px_0_rgba(45,55,40,0.4)] sm:p-5 ${
+        file ? "border-[#a8bd00] bg-[#155000]" : "border-[#155000] bg-[#155000]"
       }`}
     >
       <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={onChange} />
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onChange} />
       {file ? (
-        <div className="flex items-center justify-center gap-2">
-          <span className="text-[#0B2B26] text-xl">📷</span>
-          <div className="text-left">
-            <p className="text-sm font-medium text-[#0B2B26] truncate max-w-[200px]">{file.name}</p>
-            <p className="text-xs text-[#0B2B26]/45">Tap to replace</p>
-          </div>
+        <div className="mb-3 min-w-0">
+          <p className="mb-1 text-xl" aria-hidden="true">✓</p>
+          <p className="max-w-full truncate text-sm font-semibold">{file.name}</p>
+          <p className="text-xs text-white/70">Uploaded</p>
         </div>
       ) : (
-        <>
-          <div className="h-10 w-10 rounded-full bg-[#235347]/15 flex items-center justify-center mx-auto mb-2">
-            <svg viewBox="0 0 20 20" className="h-5 w-5 text-[#0B2B26]" fill="none">
-              <path d="M10 4v8M10 4l-3 3M10 4l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M3 14v1a2 2 0 002 2h10a2 2 0 002-2v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <p className="text-sm text-[#0B2B26]/70">{label}</p>
-          <p className="text-xs text-[#0B2B26]/45 mt-1">JPG or PNG · Max 10MB</p>
-        </>
+        <p className="mb-3 text-sm font-semibold">{label}</p>
       )}
-    </div>
+      <UploadOptions fileInputRef={inputRef} cameraInputRef={cameraInputRef} />
+      <p className="mt-2 text-xs text-white/75">JPG or PNG · Max 10MB</p>
+    </motion.div>
   );
 }
 
 /* ── Requirement upload row ───────────────────────────────────── */
 function ReqUpload({ label, file, uploading, uploaded, error, onChange }) {
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
   return (
-    <div>
-      <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">{label}</label>
-      <label className={`flex items-center gap-3 border rounded-xl px-4 py-3 cursor-pointer transition-colors ${
-        uploaded ? "border-[#0B2B26] bg-[#0B2B26]/5"
-        : error  ? "border-[#B3492B] bg-[#B3492B]/5"
-        : "border-[#235347]/25 hover:border-[#0B2B26] bg-white"
+    <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.18 }}>
+      <p className="mb-1.5 text-sm font-semibold text-[#17350f]">{label}</p>
+      <div className={`flex min-h-44 flex-col items-center justify-between rounded-2xl border-2 px-4 py-4 text-center text-white shadow-[4px_5px_0_rgba(45,55,40,0.4)] ${
+        uploaded ? "border-[#a8bd00] bg-[#155000]"
+        : error  ? "border-red-300 bg-[#155000]"
+        : "border-[#155000] bg-[#155000]"
       }`}>
-        <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={onChange} />
-        <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
-          uploaded ? "bg-[#0B2B26] text-white" : "bg-[#DAF1DE]/60 text-[#0B2B26]/45"
-        }`}>
-          {uploading ? (
-            <div className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-          ) : uploaded ? (
-            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
-              <path d="M4 10l4 4 8-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          ) : (
-            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
-              <path d="M10 4v8M10 4l-3 3M10 4l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M3 14v1a2 2 0 002 2h10a2 2 0 002-2v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          )}
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={onChange} />
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onChange} />
+        <div className="mb-3 min-w-0">
+          <p className="mb-1 text-xl" aria-hidden="true">{uploading ? "…" : uploaded ? "✓" : " "}</p>
+          <p className="max-w-full truncate text-sm font-semibold">{file?.name || (uploaded ? "Uploaded" : label)}</p>
+          {uploading && <p className="text-xs text-white/75">Uploading…</p>}
         </div>
-        <div className="min-w-0">
-          <p className={`text-sm ${uploaded ? "text-[#0B2B26] font-medium" : "text-[#0B2B26]/70"}`}>
-            {uploaded ? (file?.name ?? "File uploaded") : "Choose file"}
-          </p>
-          <p className="text-xs text-[#0B2B26]/45">{uploaded ? "Tap to replace" : "JPG or PNG · Max 10MB"}</p>
-        </div>
-      </label>
+        <UploadOptions fileInputRef={fileInputRef} cameraInputRef={cameraInputRef} />
+        <p className="mt-2 text-xs text-white/75">JPG or PNG · Max 10MB</p>
+      </div>
       {error && <Err msg={error} />}
+    </motion.div>
+  );
+}
+
+function UploadOptions({ fileInputRef, cameraInputRef }) {
+  const buttonClass = "flex flex-1 items-center justify-center gap-1.5 rounded-full bg-white px-2 py-2 text-xs font-semibold text-[#155000] shadow-sm transition hover:bg-[#eff6e9] sm:px-3 sm:text-sm";
+
+  return (
+    <div className="flex w-full max-w-xs gap-2">
+      <button type="button" onClick={() => cameraInputRef.current?.click()} className={buttonClass}>
+        <span aria-hidden="true">📷</span> Camera
+      </button>
+      <button type="button" onClick={() => fileInputRef.current?.click()} className={buttonClass}>
+        <span aria-hidden="true">▧</span> Image
+      </button>
     </div>
   );
 }

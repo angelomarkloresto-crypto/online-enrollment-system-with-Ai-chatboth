@@ -350,11 +350,13 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
   const [loading, setLoading]   = useState(true);
   const [loadErr, setLoadErr]   = useState(null);
   const [acting, setActing]     = useState(null); // "approve" | "reject" | null
+  const [reviewed, setReviewed] = useState(false);
   const [confirmReject, setConfirmReject] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     async function load() {
+      setReviewed(false);
       try {
         const res  = await fetch(
           `${apiBase}/get_student_details.php?enrollment_id=${enrollmentId}`,
@@ -437,19 +439,31 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
       >
 
         {/* Modal header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#D9E8D5] shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#D9E8D5] shrink-0 gap-3">
           <h2
             className="text-lg text-[#1B5E2C]"
             style={{ fontFamily: "'Fraunces', serif" }}
           >
             Enrollment Review
           </h2>
-          <button
-            onClick={onClose}
-            className="h-8 w-8 rounded-lg border border-[#D9E8D5] flex items-center justify-center text-[#86A18A] hover:text-[#1B5E2C] transition-colors"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setReviewed(true)}
+              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                reviewed
+                  ? "border-[#1B5E2C] bg-[#1B5E2C] text-white"
+                  : "border-[#D9E8D5] text-[#1B5E2C] hover:bg-[#D9E8D5]/40"
+              }`}
+            >
+              {reviewed ? "Reviewed" : "Mark as Reviewed"}
+            </button>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 rounded-lg border border-[#D9E8D5] flex items-center justify-center text-[#86A18A] hover:text-[#1B5E2C] transition-colors"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Modal body */}
@@ -489,6 +503,7 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
 
               {/* Requirements / uploaded documents */}
               <Section title="Uploaded Requirements">
+                <VerificationSummary value={student.ocr_verification} />
                 <DocRow label="Report Card (Front)" path={student.report_card_front} enrollmentId={student.enrollment_id} fileType="report_card_front" />
                 <DocRow label="Report Card (Back)" path={student.report_card_back} enrollmentId={student.enrollment_id} fileType="report_card_back" />
                 <DocRow label="PSA Birth Certificate" path={student.psa_birth_certificate} enrollmentId={student.enrollment_id} fileType="birth_certificate" />
@@ -507,6 +522,12 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
+            {!reviewed && (
+              <div className="mb-3 rounded-lg border border-[#F2BE22]/40 bg-[#FBF0DA] px-3 py-2 text-sm text-[#8C6B12]">
+                Please review the student details first before approving or rejecting this enrollment.
+              </div>
+            )}
+
             {confirmReject ? (
               <div className="space-y-3">
                 <div>
@@ -539,7 +560,7 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
                   </button>
                   <button
                     onClick={handleReject}
-                    disabled={acting === "reject"}
+                    disabled={acting === "reject" || !reviewed}
                     className="px-4 py-2 rounded-lg bg-[#B3492B] text-white text-sm font-medium hover:bg-[#963B22] disabled:opacity-60 transition-colors"
                   >
                     {acting === "reject" ? "Rejecting…" : "Confirm Reject"}
@@ -551,14 +572,14 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setConfirmReject(true)}
-                  disabled={!!acting}
+                  disabled={!!acting || !reviewed}
                   className="flex-1 rounded-lg border border-[#B3492B] text-[#B3492B] text-sm font-medium py-2.5 hover:bg-[#B3492B]/5 disabled:opacity-60 transition-colors"
                 >
                   Reject
                 </button>
                 <button
                   onClick={handleApprove}
-                  disabled={!!acting}
+                  disabled={!!acting || !reviewed}
                   className="flex-1 rounded-lg bg-[#1B5E2C] text-white text-sm font-medium py-2.5 hover:bg-[#164A22] disabled:opacity-60 transition-colors"
                 >
                   {acting === "approve" ? "Approving…" : "Approve & Assign Section"}
@@ -593,13 +614,53 @@ function Row({ label, value }) {
   );
 }
 
+function VerificationSummary({ value }) {
+  let verification = value;
+  if (typeof value === "string") {
+    try {
+      verification = JSON.parse(value);
+    } catch {
+      verification = null;
+    }
+  }
+
+  if (!verification || typeof verification !== "object") return null;
+  const entries = [
+    ["Birth Certificate OCR", verification.birth_certificate, "status"],
+    ["Birth Certificate Keywords", verification.birth_certificate, "keyword_status"],
+    ["Birth Certificate Name Match", verification.birth_certificate, "name_match_status"],
+    ["Good Moral Title", verification.good_moral, "status"],
+  ].filter(([, result]) => result && typeof result === "object");
+
+  if (entries.length === 0) return null;
+  return (
+    <div className="mb-3 rounded-lg border border-[#D9E8D5] bg-[#FAFAF5] p-3">
+      <p className="mb-2 text-xs font-semibold text-[#1B5E2C]">
+        Automated checks — staff review is still required
+      </p>
+      {entries.map(([label, result, statusKey]) => {
+        const status = result[statusKey];
+        if (!status) return null;
+        return (
+          <div key={label} className="flex items-center justify-between gap-2 py-1 text-xs">
+            <span className="text-[#5B6478]">{label}</span>
+            <span className={status === "Passed" ? "font-medium text-[#1B5E2C]" : "font-medium text-[#B3492B]"}>
+              {status}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function DocRow({ label, path, enrollmentId, fileType }) {
   const [preview, setPreview] = useState(false);
 
   const uploaded = Boolean(path && String(path).trim() !== "");
 
   // URL goes through Vite proxy: /staff/view_file.php → XAMPP
-  const url = `http://localhost/backend-online-enrollment/staff/view_file.php?enrollment_id=${enrollmentId}&file=${fileType}`;
+  const url = `/backend-online-enrollment/staff/view_file.php?enrollment_id=${enrollmentId}&file=${fileType}`;
 
   if (!uploaded) {
     return (

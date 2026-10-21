@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 
 const API_BASE_NOTIFICATIONS = "/backend-online-enrollment/student";
 
@@ -28,6 +29,18 @@ const NOTIFICATION_STYLES = {
     dot:     "bg-[#B3492B]",
   },
 };
+
+const bounceIn = {
+  hidden: { opacity: 0, y: 24, scale: 0.94 },
+  visible: (delay = 0) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { delay, type: "spring", stiffness: 360, damping: 18, bounce: 0.55 },
+  }),
+};
+
+const bounceOut = { opacity: 0, y: -18, scale: 0.96 };
 
 export default function StudentDashboard({ onNavigate }) {
   const studentId   = localStorage.getItem("student_id");
@@ -88,10 +101,20 @@ export default function StudentDashboard({ onNavigate }) {
   const firstName = studentName.split(" ")[0];
 
   return (
-    <div className="px-4 sm:px-6 py-6 space-y-6">
+    <motion.div
+      className="px-4 sm:px-6 py-6 space-y-6"
+      initial="hidden"
+      animate="visible"
+      exit={bounceOut}
+      variants={bounceIn}
+    >
 
       {/* ── Hero greeting ── */}
-      <div className="bg-[#0B2B26] rounded-2xl p-5 sm:p-7 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <motion.div
+        className="bg-[#0B2B26] rounded-2xl p-5 sm:p-7 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        variants={bounceIn}
+        custom={0.05}
+      >
         <div>
           <p className="text-[#DAF1DE] text-sm mb-1">{greeting},</p>
           <h2
@@ -130,7 +153,7 @@ export default function StudentDashboard({ onNavigate }) {
               : "Not enrolled"}
           </p>
         </div>
-      </div>
+      </motion.div>
 
       {/* ── Quick actions ── */}
       <section>
@@ -173,11 +196,14 @@ export default function StudentDashboard({ onNavigate }) {
               onClick:  () => onNavigate?.("profile"),
               disabled: false,
             },
-          ].map((action) => (
-            <button
+          ].map((action, i) => (
+            <motion.button
               key={action.label}
               onClick={action.onClick}
               disabled={action.disabled}
+              variants={bounceIn}
+              custom={0.12 + i * 0.08}
+              whileHover={{ y: -5, scale: 1.02 }}
               className={`bg-white rounded-xl border p-4 text-left transition-colors disabled:cursor-not-allowed ${action.color}`}
             >
               <div className="h-9 w-9 rounded-lg bg-[#0B2B26]/8 flex items-center justify-center mb-3 text-[#0B2B26]">
@@ -185,7 +211,7 @@ export default function StudentDashboard({ onNavigate }) {
               </div>
               <p className="text-sm font-medium text-[#0B2B26]">{action.label}</p>
               <p className="text-xs text-[#0B2B26]/45 mt-0.5">{action.sub}</p>
-            </button>
+            </motion.button>
           ))}
         </div>
       </section>
@@ -205,35 +231,51 @@ export default function StudentDashboard({ onNavigate }) {
         </div>
 
         {loadError && (
-          <div className="rounded-lg border border-[#B3492B]/30 bg-[#B3492B]/10 text-[#B3492B] text-sm px-4 py-3">
+          <motion.div
+            className="rounded-lg border border-[#B3492B]/30 bg-[#B3492B]/10 text-[#B3492B] text-sm px-4 py-3"
+            variants={bounceIn}
+            custom={0.1}
+          >
             {loadError}
-          </div>
+          </motion.div>
         )}
 
         {loading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl border border-[#235347]/15 p-4 flex gap-3">
+              <motion.div
+                key={i}
+                className="bg-white rounded-xl border border-[#235347]/15 p-4 flex gap-3"
+                variants={bounceIn}
+                custom={0.12 + i * 0.08}
+              >
                 <div className="h-9 w-9 rounded-lg bg-[#DAF1DE]/60 animate-pulse shrink-0" />
                 <div className="flex-1 space-y-2">
                   <div className="h-3.5 w-1/3 rounded bg-[#DAF1DE]/60 animate-pulse" />
                   <div className="h-3 w-2/3 rounded bg-[#DAF1DE]/60 animate-pulse" />
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         ) : notifications.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#235347]/15 p-8 text-center">
+          <motion.div
+            className="bg-white rounded-xl border border-[#235347]/15 p-8 text-center"
+            variants={bounceIn}
+            custom={0.12}
+          >
             <p className="text-[#0B2B26]/45 text-sm">No notifications yet.</p>
-          </div>
+          </motion.div>
         ) : (
           <div className="space-y-3">
             {notifications.map((notif, i) => {
               const style = NOTIFICATION_STYLES[notif.type] ?? NOTIFICATION_STYLES.info;
               return (
-                <div
+                <motion.div
                   key={i}
                   className={`rounded-xl border p-4 flex gap-3 ${style.wrapper}`}
+                  variants={bounceIn}
+                  custom={0.12 + i * 0.08}
+                  whileHover={{ y: -4, scale: 1.01 }}
                 >
                   <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${style.icon}`}>
                     <NotifIcon type={notif.type} />
@@ -249,7 +291,7 @@ export default function StudentDashboard({ onNavigate }) {
                       {notif.message}
                     </p>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
@@ -257,9 +299,14 @@ export default function StudentDashboard({ onNavigate }) {
       </section>
 
       {/* ── School info footer ── */}
-      <div className="bg-white rounded-xl border border-[#235347]/15 p-4 flex items-center gap-3">
+      <motion.div
+        className="bg-white rounded-xl border border-[#235347]/15 p-4 flex items-center gap-3"
+        variants={bounceIn}
+        custom={0.38}
+        whileHover={{ y: -4, scale: 1.01 }}
+      >
         <img
-          src="/assets/gogon-hs-logo.png"
+          src="/assets/gogon-hs-logo.jpg"
           alt="Gogon High School"
           className="h-10 w-10 rounded-full object-cover ring-1 ring-[#8EB69B] shrink-0"
         />
@@ -269,8 +316,8 @@ export default function StudentDashboard({ onNavigate }) {
             Gogon, Legazpi City, Albay · Junior &amp; Senior High School
           </p>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

@@ -3,7 +3,7 @@ import { useState } from "react";
 
 // const API_BASE = "http://localhost/backend-online-enrollment/admin";
 export const getApiBase = () => {
-  return "/backend-online-enrollment/admin";
+  return "http://localhost/backend-online-enrollment/admin";
 };
 
 
@@ -65,7 +65,7 @@ export default function AdminLogin({ onLoginSuccess }) {
       <div className="relative w-full max-w-sm">
         <div className="flex flex-col items-center text-center mb-8">
           <img
-            src="/assets/gogon-hs-logo.png"
+            src="/assets/gogon-hs-logo.jpg"
             alt="Gogon High School seal"
             className="h-16 w-16 rounded-full ring-2 ring-[#F2BE22] object-cover mb-5"
           />

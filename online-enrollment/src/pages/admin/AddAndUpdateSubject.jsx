@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 // const API_BASE = "http://localhost/backend-online-enrollment/staff";
 export const getApiBase = () => {
-  return "/backend-online-enrollment/staff";
+  return "http://localhost/backend-online-enrollment/staff";
 };
 
 export default function AddAndUpdateSubject() {

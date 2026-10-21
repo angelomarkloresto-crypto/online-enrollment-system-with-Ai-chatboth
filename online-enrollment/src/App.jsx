@@ -162,7 +162,7 @@ function SidebarLayout({ children }) {
         {/* Logo row */}
         <div className={`flex items-center gap-3 px-3 py-5 border-b border-white/10 ${collapsed ? "justify-center" : ""}`}>
           <img
-            src="/assets/gogon-hs-logo.png"
+            src="/assets/gogon-hs-logo.jpg"
             alt="Gogon High School"
             className="h-9 w-9 rounded-full bg-white object-cover ring-2 ring-[#F2BE22] shrink-0"
           />
@@ -231,7 +231,7 @@ function SidebarLayout({ children }) {
           <aside className="absolute left-0 top-0 bottom-0 w-64 bg-[#1B5E2C] text-[#FAFAF5] flex flex-col z-50">
             <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
               <img
-                src="/assets/gogon-hs-logo.png"
+                src="/assets/gogon-hs-logo.jpg"
                 alt="Gogon High School"
                 className="h-9 w-9 rounded-full bg-white object-cover ring-2 ring-[#F2BE22] shrink-0"
               />

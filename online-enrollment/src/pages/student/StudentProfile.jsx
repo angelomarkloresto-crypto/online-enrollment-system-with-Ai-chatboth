@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 const API_BASE = "/backend-online-enrollment/student";
 
 const SUFFIXES = ["", "Jr.", "Sr.", "II", "III", "IV"];
+const isValidOptionalPhone = (value) =>
+  value === "" || /^(?:09\d{9}|\+639\d{9})$/.test(value);
 
 export default function StudentProfile() {
   const studentId = localStorage.getItem("student_id");
@@ -149,9 +151,11 @@ function EditProfileForm({ profile, studentId, apiBase, onSuccess, onError }) {
     city_municipality:    profile.city_municipality    ?? "",
     barangay:             profile.barangay             ?? "",
     street_house_no:      profile.street_house_no      ?? "",
+    father_contact_number: profile.father_contact_number ?? "",
+    mother_contact_number: profile.mother_contact_number ?? "",
     guardian_fullname:    profile.guardian_fullname    ?? "",
     guardian_relationship: profile.guardian_relationship ?? "",
-    guardian_contact_no:  profile.guardian_contact_no  ?? "",
+    guardian_contact_number: profile.guardian_contact_number ?? "",
   });
   const [errors, setErrors]         = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -180,6 +184,15 @@ function EditProfileForm({ profile, studentId, apiBase, onSuccess, onError }) {
     if (!form.last_name.trim())  errs.last_name  = "Required.";
     if (form.contact_no && !/^09\d{9}$/.test(form.contact_no))
       errs.contact_no = "Enter a valid PH mobile number.";
+    for (const field of [
+      "father_contact_number",
+      "mother_contact_number",
+      "guardian_contact_number",
+    ]) {
+      if (!isValidOptionalPhone(form[field])) {
+        errs[field] = "Enter a valid PH mobile number (09XXXXXXXXX or +639XXXXXXXXX).";
+      }
+    }
     if (!form.province.trim())          errs.province          = "Required.";
     if (!form.city_municipality.trim()) errs.city_municipality = "Required.";
     if (!form.barangay.trim())          errs.barangay          = "Required.";
@@ -266,9 +279,11 @@ function EditProfileForm({ profile, studentId, apiBase, onSuccess, onError }) {
 
               {sec.key === "guardian" && (
                 <>
+                  <Field label="Father's Contact Number" name="father_contact_number" type="tel" value={form.father_contact_number} error={errors.father_contact_number} onChange={handleChange} placeholder="09XXXXXXXXX or +639XXXXXXXXX" maxLength={13} />
+                  <Field label="Mother's Contact Number" name="mother_contact_number" type="tel" value={form.mother_contact_number} error={errors.mother_contact_number} onChange={handleChange} placeholder="09XXXXXXXXX or +639XXXXXXXXX" maxLength={13} />
                   <Field label="Guardian Full Name *" name="guardian_fullname"    value={form.guardian_fullname}    error={errors.guardian_fullname} onChange={handleChange} />
                   <Field label="Relationship"         name="guardian_relationship" value={form.guardian_relationship} onChange={handleChange} placeholder="e.g. Mother, Father" />
-                  <Field label="Guardian Contact No." name="guardian_contact_no"  value={form.guardian_contact_no}  onChange={handleChange} placeholder="09XXXXXXXXX" maxLength={11} />
+                  <Field label="Guardian Contact Number" name="guardian_contact_number" value={form.guardian_contact_number} error={errors.guardian_contact_number} onChange={handleChange} type="tel" placeholder="09XXXXXXXXX or +639XXXXXXXXX" maxLength={13} />
                 </>
               )}
             </div>

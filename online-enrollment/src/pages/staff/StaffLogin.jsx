@@ -72,7 +72,7 @@ export default function StaffLogin({ onLoginSuccess }) {
           {/* Logo + school name */}
           <div className="flex items-center gap-3">
             <img
-              src="/assets/gogon-hs-logo.png"
+              src="/assets/gogon-hs-logo.jpg"
               alt="Gogon High School seal"
               className="h-12 w-12 rounded-full bg-white object-cover ring-2 ring-[#F2BE22] shrink-0"
             />

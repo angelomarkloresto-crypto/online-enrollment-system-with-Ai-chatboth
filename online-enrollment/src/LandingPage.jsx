@@ -69,7 +69,7 @@ export default function LandingPage() {
         >
           <div className="flex items-center gap-3">
             <img
-              src="/assets/gogon-hs-logo.png"
+              src="/assets/gogon-hs-logo.jpg"
               alt="Gogon High School"
               className="h-10 w-10 rounded-full object-cover ring-2 ring-[#F2BE22]"
             />

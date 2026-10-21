@@ -198,7 +198,7 @@ export default function Hirumi({ role = "admin", userId = "" }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 32, scale: 0.94 }}
               transition={{ type: "spring", stiffness: 280, damping: 22 }}
-              className="absolute bottom-[72px] right-0 flex w-[340px] flex-col overflow-hidden rounded-[32px] border border-white/10 bg-slate-850/30 backdrop-blur-xl shadow-[0_40px_120px_-40px_rgba(15,23,42,0.55)]"
+              className="absolute bottom-[72px] right-0 flex w-[calc(100vw-2rem)] max-w-[340px] flex-col overflow-hidden rounded-[32px] border border-white/10 bg-slate-850/30 backdrop-blur-xl shadow-[0_40px_120px_-40px_rgba(15,23,42,0.55)]"
             >
               <div className="flex h-[64px] shrink-0 items-center justify-between bg-slate-950/10 px-4 backdrop-blur-xl border-b border-white/10">
                 <div className="flex items-center gap-3">

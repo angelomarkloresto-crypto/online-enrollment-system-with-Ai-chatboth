@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 // This Api use for offline
-// const API_BASE = "http://localhost/backend-online-enrollment/admin";
-export const getApiBase = () => {
-  return "/backend-online-enrollment/admin";
-};
+const API_BASE = "http://localhost/backend-online-enrollment/admin";
+// export const getApiBase = () => {
+//   return "/backend-online-enrollment/admin";
+// };
 
 const STAT_CARDS = [
   { key: "total_students",       label: "Total Students", tone: "green", icon: "users" },
@@ -139,7 +139,7 @@ export default function AdminDashboard() {
     setLoadingSummary(true);
     setSummaryError(null);
     try {
-      const res  = await fetch(`${getApiBase()}/dashboard_summary.php`, { credentials: "include" });
+      const res  = await fetch(`${API_BASE}/dashboard_summary.php`, { credentials: "include" });
       const data = await res.json();
       data.success ? setSummary(data) : setSummaryError("Could not load dashboard numbers.");
     } catch { setSummaryError("Could not reach the server."); }
@@ -149,7 +149,7 @@ export default function AdminDashboard() {
   async function loadStatus() {
     setStatusLoading(true);
     try {
-      const res  = await fetch(`${getApiBase()}/get_system_status.php`, { credentials: "include" });
+      const res  = await fetch(`${API_BASE}/get_system_status.php`, { credentials: "include" });
       const data = await res.json();
       if (data.success) setEnrollmentStatus(data.enrollment_status);
     } catch { /* leave as null */ }
@@ -185,7 +185,7 @@ export default function AdminDashboard() {
     try {
       const body = new FormData();
       body.append("enrollment_status", nextStatus);
-      const res  = await fetch(`${getApiBase()}/update_enrollment_status.php`, {
+      const res  = await fetch(`${API_BASE}/update_enrollment_status.php`, {
         method: "POST", credentials: "include", body,
       });
       const text = await res.text();
@@ -215,7 +215,7 @@ export default function AdminDashboard() {
     setResetting(true);
     setStatusMessage(null);
     try {
-      const res = await fetch(`${getApiBase()}/reset_enrollment.php`, {
+      const res = await fetch(`${API_BASE}/reset_enrollment.php`, {
         method: "POST",
         credentials: "include",
       });
