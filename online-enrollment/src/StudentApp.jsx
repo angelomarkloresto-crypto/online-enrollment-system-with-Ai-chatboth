@@ -12,6 +12,7 @@ import EnrollmentForm   from "./pages/student/EnrollmentForm";
 import StudentProfile         from "./pages/student/StudentProfile";
 import StudentTimetable       from "./pages/student/StudentTimetable";
 import DownloadConfirmation   from "./pages/student/DownloadConfirmation";
+import DonationPage from "./pages/student/DonationPage";
 import Hirumi from "./pages/AI assistant/Hirumi";
 /**
  * StudentApp.jsx
@@ -54,7 +55,8 @@ function StudentAuthProvider({ children }) {
     const id    = localStorage.getItem("student_id");
     const name  = localStorage.getItem("student_name");
     const gmail = localStorage.getItem("student_gmail");
-    return id ? { student_id: id, name, gmail } : null;
+    const lrn = localStorage.getItem("student_lrn") ?? id;
+    return id ? { student_id: id, lrn, name, gmail } : null;
   });
 
   // null = not checked yet, true = Approved, false = not approved (or no
@@ -86,17 +88,21 @@ function StudentAuthProvider({ children }) {
 
   function login(studentData) {
     const name = `${studentData.first_name ?? ""} ${studentData.last_name ?? ""}`.trim();
-    localStorage.setItem("student_id",    String(studentData.student_id));
+    const id = String(studentData.student_id ?? studentData.lrn ?? "");
+    const lrn = String(studentData.lrn ?? studentData.student_id ?? "");
+    localStorage.setItem("student_id",    id);
+    localStorage.setItem("student_lrn",   lrn);
     localStorage.setItem("student_name",  name);
     localStorage.setItem("student_gmail", studentData.gmail ?? "");
-    setStudent({ student_id: String(studentData.student_id), name, gmail: studentData.gmail });
-    refreshEnrollmentStatus(studentData.student_id);
+    setStudent({ student_id: id, lrn, name, gmail: studentData.gmail });
+    refreshEnrollmentStatus(id);
   }
 
   async function logout() {
     try { await fetch(LOGOUT_URL, { method: "POST", credentials: "include" }); }
     catch { /* proceed */ }
     localStorage.removeItem("student_id");
+    localStorage.removeItem("student_lrn");
     localStorage.removeItem("student_name");
     localStorage.removeItem("student_gmail");
     setStudent(null);
@@ -159,6 +165,16 @@ const NAV_ALL = [
         <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8"/>
         <path d="M8 2v2M16 2v2M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
         <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    label: "Donation",
+    path: "/student/donation",
+    icon: () => (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/>
+        <path d="M15.5 8.5c-.7-.8-1.7-1.2-3-1.2-1.6 0-2.7.8-2.7 2s1 1.8 2.8 2.2 2.8 1 2.8 2.2-1.1 2-2.8 2c-1.2 0-2.3-.4-3.1-1.3M12.5 5.8v12.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
       </svg>
     ),
   },
@@ -503,6 +519,16 @@ function StudentRoutes() {
           <ProtectedRoute>
             <StudentLayout>
               <StudentTimetable />
+            </StudentLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/donation"
+        element={
+          <ProtectedRoute>
+            <StudentLayout>
+              <DonationPage />
             </StudentLayout>
           </ProtectedRoute>
         }

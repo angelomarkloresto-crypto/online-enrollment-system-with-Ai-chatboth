@@ -13,6 +13,7 @@ import StrandsAndSections   from "./pages/staff/StrandsAndSections";
 import TimetableManagement from "./pages/staff/TimetableManagement";
 import Hirumi from "./pages/AI assistant/Hirumi";
 import SectionQrManager from "./pages/staff/SectionQrManager";
+import DonationManagement from "./pages/staff/DonationManagement";
 
 
 
@@ -145,6 +146,16 @@ const NAV = [
       <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none">
         <path d="M5 10h10M10 5v10" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
         <rect x="3" y="3" width="14" height="14" rx="2" stroke={color} strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  {
+    label: "Donation Management",
+    path: "/staff/donations",
+    icon: (color) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none">
+        <circle cx="10" cy="10" r="7.5" stroke={color} strokeWidth="1.5"/>
+        <path d="M12.8 7.3c-.6-.6-1.4-.9-2.5-.9-1.3 0-2.2.6-2.2 1.6s.8 1.5 2.3 1.8 2.3.8 2.3 1.8-.9 1.6-2.3 1.6c-1 0-1.9-.3-2.6-1M10.3 5.1v9.8" stroke={color} strokeWidth="1.3" strokeLinecap="round"/>
       </svg>
     ),
   },
@@ -472,6 +483,16 @@ function StaffRoutes() {
           <ProtectedRoute>
             <StaffSidebarLayout>
               <SectionQrManager />
+            </StaffSidebarLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff/donations"
+        element={
+          <ProtectedRoute>
+            <StaffSidebarLayout>
+              <DonationManagement />
             </StaffSidebarLayout>
           </ProtectedRoute>
         }
