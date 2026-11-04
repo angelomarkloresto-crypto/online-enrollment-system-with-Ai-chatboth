@@ -3,7 +3,7 @@ import EnrollmentDashboard from "./EnrollmentDashboard";
 import EnrollmentManagement from "./EnrollmentManagement";
 import StrandsAndSections from "./StrandsAndSections";
 
-export default function StaffDashboard() {
+export default function StaffDashboard({ onSessionExpired }) {
   const [activeView, setActiveView] = useState("dashboard");
 
   return (
@@ -60,7 +60,9 @@ export default function StaffDashboard() {
 
       <div className={activeView === "dashboard" ? "" : "mx-auto max-w-7xl px-4 py-6 sm:px-6"}>
         {activeView === "dashboard" && <EnrollmentDashboard />}
-        {activeView === "enrollments" && <EnrollmentManagement />}
+        {activeView === "enrollments" && (
+          <EnrollmentManagement onSessionExpired={onSessionExpired} />
+        )}
         {activeView === "strands" && <StrandsAndSections />}
       </div>
     </div>

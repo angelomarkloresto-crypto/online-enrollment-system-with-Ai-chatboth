@@ -1,4 +1,4 @@
-import { useState, createContext, useContext } from "react";
+import { useState, createContext, useContext, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BrowserRouter, Routes, Route,
@@ -412,7 +412,13 @@ export default function StaffApp() {
 }
 
 function StaffRoutes() {
-  const { isLoggedIn, login } = useStaffAuth();
+  const { isLoggedIn, login, logout } = useStaffAuth();
+  const navigate = useNavigate();
+
+  const handleSessionExpired = useCallback(async () => {
+    await logout();
+    navigate("/staff/login", { replace: true });
+  }, [logout, navigate]);
 
   return (
     <Routes>
@@ -432,7 +438,7 @@ function StaffRoutes() {
         element={
           <ProtectedRoute>
             <StaffSidebarLayout>
-              <StaffDashboard />
+              <StaffDashboard onSessionExpired={handleSessionExpired} />
             </StaffSidebarLayout>
           </ProtectedRoute>
         }
@@ -442,7 +448,7 @@ function StaffRoutes() {
         element={
           <ProtectedRoute>
             <StaffSidebarLayout>
-              <EnrollmentManagement />
+              <EnrollmentManagement onSessionExpired={handleSessionExpired} />
             </StaffSidebarLayout>
           </ProtectedRoute>
         }

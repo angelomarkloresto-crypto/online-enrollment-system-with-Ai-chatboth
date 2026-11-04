@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 
 const API_BASE = "/backend-online-enrollment/staff";
 
-export default function EnrollmentManagement() {
+export default function EnrollmentManagement({ onSessionExpired }) {
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading]         = useState(true);
   const [loadError, setLoadError]     = useState(null);
@@ -14,6 +14,9 @@ export default function EnrollmentManagement() {
 
   const [selectedId, setSelectedId]   = useState(null); // enrollment_id for detail modal
   const [toast, setToast]             = useState(null);  // { type, text }
+  const [approvalNotice, setApprovalNotice] = useState(null);
+  const [retryingEmail, setRetryingEmail] = useState(false);
+  const retryInProgress = useRef(false);
 
   useEffect(() => { loadEnrollments(); }, []);
 
@@ -30,6 +33,14 @@ export default function EnrollmentManagement() {
       const res  = await fetch(`${API_BASE}/get_pending_enrollments.php`, {
         credentials: "include",
       });
+      if (res.status === 401) {
+        if (typeof onSessionExpired === "function") {
+          await onSessionExpired();
+        } else {
+          setLoadError("Your session has expired. Please sign in again.");
+        }
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         setEnrollments(data.enrollments ?? []);
@@ -43,15 +54,47 @@ export default function EnrollmentManagement() {
     }
   }
 
-  function handleActionDone(enrollmentId, action) {
+  function handleActionDone(enrollmentId, action, result) {
     // Remove from list immediately after approve/reject
     setEnrollments((prev) => prev.filter((e) => e.enrollment_id !== enrollmentId));
     setSelectedId(null);
+    if (action === "approve") {
+      if (result.alreadyProcessed) {
+        setToast({
+          type: "success",
+          text: "Enrollment was already approved. No additional confirmation email was sent.",
+        });
+      } else if (result.email_status === "Failed") {
+        setApprovalNotice({
+          type: "warning",
+          emailStatus: "Failed",
+          emailLogId: result.email_log_id,
+          text: "Enrollment approved, but confirmation email delivery failed.",
+        });
+      } else if (result.email_status === "Pending") {
+        setApprovalNotice({
+          type: "warning",
+          emailStatus: "Pending",
+          text: "Enrollment approved, but confirmation email delivery is still pending. Check the email status before retrying.",
+        });
+      } else if (result.email_status === "Sent") {
+        setToast({
+          type: "success",
+          text: "Enrollment approved and confirmation email sent.",
+        });
+      } else {
+        setApprovalNotice({
+          type: "warning",
+          emailStatus: "Pending",
+          text: "Enrollment approved, but the confirmation email status could not be confirmed. Check the status before retrying.",
+        });
+      }
+      return;
+    }
+
     setToast({
       type: "success",
-      text: action === "approve"
-        ? "Enrollment approved and section assigned."
-        : "Enrollment rejected.",
+      text: "Enrollment rejected.",
     });
   }
 
@@ -105,6 +148,32 @@ export default function EnrollmentManagement() {
           <RefreshIcon /> Refresh
         </button>
       </motion.div>
+
+      {approvalNotice && (
+        <div
+          role="status"
+          className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border px-4 py-3 text-sm ${
+            approvalNotice.type === "success"
+              ? "border-[#1B5E2C]/30 bg-[#1B5E2C]/10 text-[#1B5E2C]"
+              : "border-[#8C6B12]/30 bg-[#FBF0DA] text-[#8C6B12]"
+          }`}
+        >
+          <span>{approvalNotice.text}</span>
+          {approvalNotice.emailStatus === "Failed" &&
+            approvalNotice.emailLogId !== undefined &&
+            approvalNotice.emailLogId !== null &&
+            approvalNotice.emailLogId !== "" && (
+              <button
+                type="button"
+                onClick={() => retryConfirmationEmail(approvalNotice.emailLogId)}
+                disabled={retryingEmail}
+                className="shrink-0 rounded-lg bg-[#8C6B12] px-3 py-2 text-white font-medium hover:bg-[#6E5410] disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {retryingEmail ? "Retrying…" : "Retry confirmation email"}
+              </button>
+            )}
+        </div>
+      )}
 
       {/* Filters */}
       <motion.div
@@ -317,8 +386,9 @@ export default function EnrollmentManagement() {
           <StudentDetailModal
             enrollmentId={selectedId}
             apiBase={API_BASE}
+            onSessionExpired={onSessionExpired}
             onClose={() => setSelectedId(null)}
-            onApprove={(id) => handleActionDone(id, "approve")}
+            onApprove={(id, result) => handleActionDone(id, "approve", result)}
             onReject={(id)  => handleActionDone(id, "reject")}
             onError={handleActionError}
           />
@@ -342,10 +412,79 @@ export default function EnrollmentManagement() {
       </AnimatePresence>
     </motion.div>
   );
+
+  async function retryConfirmationEmail(emailLogId) {
+    if (retryInProgress.current) return;
+    retryInProgress.current = true;
+    setRetryingEmail(true);
+
+    try {
+      const body = new FormData();
+      body.append("email_log_id", emailLogId);
+      const res = await fetch(`${API_BASE}/retry_enrollment_confirmation.php`, {
+        method: "POST",
+        credentials: "include",
+        body,
+      });
+
+      if (res.status === 401) {
+        await onSessionExpired();
+        return;
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        setApprovalNotice({
+          type: "warning",
+          emailStatus: "Pending",
+          text: "Enrollment remains approved, but the email retry result could not be confirmed. Check the status before trying again.",
+        });
+        return;
+      }
+
+      if (data.email_status === "Sent") {
+        setApprovalNotice({
+          type: "success",
+          emailStatus: "Sent",
+          text: "Enrollment remains approved and the confirmation email was sent.",
+        });
+      } else if (data.email_status === "Failed") {
+        setApprovalNotice({
+          type: "warning",
+          emailStatus: "Failed",
+          emailLogId,
+          text: "Enrollment remains approved, but confirmation email delivery failed again. You can retry when ready.",
+        });
+      } else if (data.email_status === "Pending") {
+        setApprovalNotice({
+          type: "warning",
+          emailStatus: "Pending",
+          text: "Enrollment remains approved, but the email status is still pending. Check the status before retrying.",
+        });
+      } else {
+        setApprovalNotice({
+          type: "warning",
+          emailStatus: "Pending",
+          text: `Enrollment remains approved, but the email retry could not be confirmed${data.message ? `: ${data.message}` : ". Check the status before trying again."}`,
+        });
+      }
+    } catch {
+      setApprovalNotice({
+        type: "warning",
+        emailStatus: "Pending",
+        text: "Enrollment remains approved, but the email retry result could not be confirmed because the server could not be reached. Check the status before trying again.",
+      });
+    } finally {
+      retryInProgress.current = false;
+      setRetryingEmail(false);
+    }
+  }
 }
 
 /* ── Student Detail Modal ──────────────────────────────────── */
-function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onReject, onError }) {
+function StudentDetailModal({ enrollmentId, apiBase, onSessionExpired, onClose, onApprove, onReject, onError }) {
   const [student, setStudent]   = useState(null);
   const [loading, setLoading]   = useState(true);
   const [loadErr, setLoadErr]   = useState(null);
@@ -362,6 +501,10 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
           `${apiBase}/get_student_details.php?enrollment_id=${enrollmentId}`,
           { credentials: "include" }
         );
+        if (res.status === 401) {
+          await onSessionExpired();
+          return;
+        }
         const data = await res.json();
         data.success ? setStudent(data.student) : setLoadErr(data.message ?? "Could not load student.");
       } catch {
@@ -371,7 +514,7 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
       }
     }
     load();
-  }, [apiBase, enrollmentId]);
+  }, [apiBase, enrollmentId, onSessionExpired]);
 
   async function handleApprove() {
     setActing("approve");
@@ -381,10 +524,65 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
       const res  = await fetch(`${apiBase}/approve_enrollment.php`, {
         method: "POST", credentials: "include", body,
       });
-      const data = await res.json();
-      data.success ? onApprove(enrollmentId) : onError(data.message ?? "Could not approve.");
-    } catch {
-      onError("Could not reach the server.");
+      if (res.status === 401) {
+        if (typeof onSessionExpired === "function") {
+          await onSessionExpired();
+        } else {
+          onError("Your session has expired. Please sign in again.");
+        }
+        return;
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        onError("The server returned an unexpected response. Approval status could not be confirmed.");
+        return;
+      }
+
+      if (data.already_processed === true && data.enrollment_status === "Approved") {
+        onApprove(enrollmentId, { alreadyProcessed: true });
+      } else if (data.approval_status === "Approved") {
+        onApprove(enrollmentId, data);
+      } else {
+        const message = typeof data.message === "string" && data.message.trim()
+          ? `Approval not confirmed. ${data.message}`
+          : "The server did not confirm approval. Refresh and check the enrollment status before trying again.";
+        onError(message);
+      }
+    } catch (requestError) {
+      try {
+        const verificationResponse = await fetch(
+          `${apiBase}/get_student_details.php?enrollment_id=${enrollmentId}`,
+          { credentials: "include" }
+        );
+        if (verificationResponse.status === 401) {
+          if (typeof onSessionExpired === "function") {
+            await onSessionExpired();
+          } else {
+            onError("Your session has expired. Please sign in again.");
+          }
+          return;
+        }
+
+        const verification = await verificationResponse.json();
+        if (
+          verificationResponse.ok &&
+          verification.success === true &&
+          verification.student?.enrollment_status === "Approved"
+        ) {
+          onApprove(enrollmentId, {
+            approval_status: "Approved",
+          });
+          return;
+        }
+      } catch (verificationError) {
+        console.error("Could not verify enrollment approval after the request failed.", verificationError);
+      }
+
+      console.error("Enrollment approval request failed.", requestError);
+      onError("Could not confirm enrollment approval because the server connection failed. Refresh the enrollment list before trying again.");
     } finally {
       setActing(null);
     }
@@ -405,6 +603,10 @@ function StudentDetailModal({ enrollmentId, apiBase, onClose, onApprove, onRejec
       const res  = await fetch(`${apiBase}/reject_enrollment.php`, {
         method: "POST", credentials: "include", body,
       });
+      if (res.status === 401) {
+        await onSessionExpired();
+        return;
+      }
       const data = await res.json();
       data.success ? onReject(enrollmentId) : onError(data.message ?? "Could not reject.");
     } catch {

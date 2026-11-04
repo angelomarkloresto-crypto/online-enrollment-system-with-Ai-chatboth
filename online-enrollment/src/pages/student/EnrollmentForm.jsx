@@ -144,8 +144,7 @@ export default function EnrollmentForm({ onBack }) {
     return data.filename;
   }
 
-  async function handleFrontUpload(e) {
-    const file = e.target.files?.[0];
+  async function handleFrontUpload(file) {
     if (!file) return;
     setFrontFile(file);
     setFrontName("");
@@ -189,8 +188,7 @@ export default function EnrollmentForm({ onBack }) {
     }
   }
 
-  async function handleBackUpload(e) {
-    const file = e.target.files?.[0];
+  async function handleBackUpload(file) {
     if (!file) return;
     setBackFile(file);
     try {
@@ -501,7 +499,7 @@ export default function EnrollmentForm({ onBack }) {
                   file={frontFile}
                   accept="image/jpeg,image/png"
                   inputRef={frontInputRef}
-                  onChange={handleFrontUpload}
+                  onFileSelect={handleFrontUpload}
                   label="Upload front of report card"
                 />
                 {scanErrors.front && <Err msg={scanErrors.front} />}
@@ -553,7 +551,7 @@ export default function EnrollmentForm({ onBack }) {
                   file={backFile}
                   accept="image/jpeg,image/png"
                   inputRef={backInputRef}
-                  onChange={handleBackUpload}
+                  onFileSelect={handleBackUpload}
                   label="Upload back of report card"
                 />
                 {scanErrors.back && <Err msg={scanErrors.back} />}
@@ -583,8 +581,7 @@ export default function EnrollmentForm({ onBack }) {
                 uploading={uploading.psa}
                 uploaded={!!psaName}
                 error={reqErrors.psa}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
+                onFileSelect={(f) => {
                   if (f) handleReqUpload("psa", f, setPsaFile, setPsaName);
                 }}
               />
@@ -596,8 +593,7 @@ export default function EnrollmentForm({ onBack }) {
                 uploading={uploading.goodMoral}
                 uploaded={!!goodMoralName}
                 error={reqErrors.goodMoral}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
+                onFileSelect={(f) => {
                   if (f) handleReqUpload("goodMoral", f, setGoodMoralFile, setGoodMoralName);
                 }}
               />
@@ -610,8 +606,7 @@ export default function EnrollmentForm({ onBack }) {
                   uploading={uploading.cot}
                   uploaded={!!cotName}
                   error={reqErrors.cot}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
+                  onFileSelect={(f) => {
                     if (f) handleReqUpload("cot", f, setCotFile, setCotName);
                   }}
                 />
@@ -745,8 +740,7 @@ export default function EnrollmentForm({ onBack }) {
 }
 
 /* ── Upload Box ───────────────────────────────────────────────── */
-function UploadBox({ file, accept, inputRef, onChange, label }) {
-  const cameraInputRef = useRef(null);
+function UploadBox({ file, accept, inputRef, onFileSelect, label }) {
   return (
     <motion.div
       whileHover={{ y: -3 }}
@@ -755,8 +749,7 @@ function UploadBox({ file, accept, inputRef, onChange, label }) {
         file ? "border-[#a8bd00] bg-[#155000]" : "border-[#155000] bg-[#155000]"
       }`}
     >
-      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={onChange} />
-      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onChange} />
+      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(event) => onFileSelect(event.target.files?.[0])} />
       {file ? (
         <div className="mb-3 min-w-0">
           <p className="mb-1 text-xl" aria-hidden="true">✓</p>
@@ -766,16 +759,15 @@ function UploadBox({ file, accept, inputRef, onChange, label }) {
       ) : (
         <p className="mb-3 text-sm font-semibold">{label}</p>
       )}
-      <UploadOptions fileInputRef={inputRef} cameraInputRef={cameraInputRef} />
+      <UploadOptions fileInputRef={inputRef} onCameraCapture={onFileSelect} />
       <p className="mt-2 text-xs text-white/75">JPG or PNG · Max 10MB</p>
     </motion.div>
   );
 }
 
 /* ── Requirement upload row ───────────────────────────────────── */
-function ReqUpload({ label, file, uploading, uploaded, error, onChange }) {
+function ReqUpload({ label, file, uploading, uploaded, error, onFileSelect }) {
   const fileInputRef = useRef(null);
-  const cameraInputRef = useRef(null);
   return (
     <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.18 }}>
       <p className="mb-1.5 text-sm font-semibold text-[#17350f]">{label}</p>
@@ -784,14 +776,13 @@ function ReqUpload({ label, file, uploading, uploaded, error, onChange }) {
         : error  ? "border-red-300 bg-[#155000]"
         : "border-[#155000] bg-[#155000]"
       }`}>
-        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={onChange} />
-        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onChange} />
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(event) => onFileSelect(event.target.files?.[0])} />
         <div className="mb-3 min-w-0">
           <p className="mb-1 text-xl" aria-hidden="true">{uploading ? "…" : uploaded ? "✓" : " "}</p>
           <p className="max-w-full truncate text-sm font-semibold">{file?.name || (uploaded ? "Uploaded" : label)}</p>
           {uploading && <p className="text-xs text-white/75">Uploading…</p>}
         </div>
-        <UploadOptions fileInputRef={fileInputRef} cameraInputRef={cameraInputRef} />
+        <UploadOptions fileInputRef={fileInputRef} onCameraCapture={onFileSelect} />
         <p className="mt-2 text-xs text-white/75">JPG or PNG · Max 10MB</p>
       </div>
       {error && <Err msg={error} />}
@@ -799,17 +790,143 @@ function ReqUpload({ label, file, uploading, uploaded, error, onChange }) {
   );
 }
 
-function UploadOptions({ fileInputRef, cameraInputRef }) {
+function UploadOptions({ fileInputRef, onCameraCapture }) {
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [cameraError, setCameraError] = useState("");
+  const cameraRequestRef = useRef(0);
   const buttonClass = "flex flex-1 items-center justify-center gap-1.5 rounded-full bg-white px-2 py-2 text-xs font-semibold text-[#155000] shadow-sm transition hover:bg-[#eff6e9] sm:px-3 sm:text-sm";
+
+  function openCamera() {
+    setCameraOpen(true);
+    setCameraError("");
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("Camera access requires HTTPS or localhost and a supported browser.");
+      return;
+    }
+
+    const requestId = ++cameraRequestRef.current;
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false,
+    }).then((stream) => {
+      if (requestId !== cameraRequestRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      setCameraStream(stream);
+    }).catch((error) => {
+      if (requestId !== cameraRequestRef.current) return;
+      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        setCameraError("Camera permission was denied. Allow camera access in your browser settings and try again.");
+      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        setCameraError("No camera was found on this device.");
+      } else {
+        setCameraError("Could not start the camera. Check that it is connected and not being used by another app.");
+      }
+    });
+  }
+
+  function closeCamera() {
+    cameraRequestRef.current += 1;
+    setCameraStream(null);
+    setCameraOpen(false);
+  }
 
   return (
     <div className="flex w-full max-w-xs gap-2">
-      <button type="button" onClick={() => cameraInputRef.current?.click()} className={buttonClass}>
+      <button type="button" onClick={openCamera} className={buttonClass}>
         <span aria-hidden="true">📷</span> Camera
       </button>
       <button type="button" onClick={() => fileInputRef.current?.click()} className={buttonClass}>
         <span aria-hidden="true">▧</span> Image
       </button>
+      {cameraOpen && (
+        <CameraCapture
+          stream={cameraStream}
+          cameraError={cameraError}
+          setCameraError={setCameraError}
+          onCapture={(capturedFile) => {
+            onCameraCapture(capturedFile);
+            closeCamera();
+          }}
+          onClose={closeCamera}
+        />
+      )}
+    </div>
+  );
+}
+
+function CameraCapture({ stream, cameraError, setCameraError, onCapture, onClose }) {
+  const videoRef = useRef(null);
+  const [cameraReady, setCameraReady] = useState(false);
+
+  useEffect(() => {
+    if (!stream || !videoRef.current) return undefined;
+    const video = videoRef.current;
+    video.srcObject = stream;
+    video.play().then(() => setCameraReady(true)).catch(() => {
+      setCameraError("The camera started, but the live preview could not be displayed.");
+    });
+    return () => {
+      video.srcObject = null;
+      stream.getTracks().forEach((track) => track.stop());
+    };
+  }, [stream, setCameraError]);
+
+  function captureImage() {
+    const video = videoRef.current;
+    if (!video?.videoWidth || !video.videoHeight) {
+      setCameraError("The camera is not ready yet. Please try again.");
+      return;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      setCameraError("Could not capture the image. Please try again.");
+      return;
+    }
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setCameraError("Could not capture the image. Please try again.");
+        return;
+      }
+      onCapture(new File([blob], "camera-capture.jpg", { type: "image/jpeg" }));
+    }, "image/jpeg", 0.92);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="camera-capture-title"
+        className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 id="camera-capture-title" className="text-lg font-semibold text-[#0B2B26]">Take a photo</h2>
+          <button type="button" onClick={onClose} className="rounded px-2 py-1 text-sm text-[#0B2B26] hover:bg-[#eff6e9]">
+            Close
+          </button>
+        </div>
+        <video ref={videoRef} autoPlay playsInline muted className="max-h-[60vh] w-full rounded-lg bg-black object-contain" />
+        {!stream && !cameraError && <p className="mt-3 text-sm text-[#0B2B26]/70">Requesting camera access…</p>}
+        {cameraError && <p role="alert" className="mt-3 text-sm text-[#B3492B]">{cameraError}</p>}
+        <button
+          type="button"
+          onClick={captureImage}
+          disabled={!stream || !cameraReady}
+          className="mt-4 w-full rounded-full bg-[#155000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#103d00] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Take photo
+        </button>
+      </div>
     </div>
   );
 }
