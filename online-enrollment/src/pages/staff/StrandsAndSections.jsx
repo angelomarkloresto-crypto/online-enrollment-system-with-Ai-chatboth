@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import SectionCreationWizard from "./SectionCreationWizard";
 
 
 const API_BASE = "/backend-online-enrollment/staff";
@@ -44,7 +45,7 @@ export default function StrandsAndSections() {
           className="text-xl sm:text-2xl text-[#1B5E2C]"
           style={{ fontFamily: "'Fraunces', serif" }}
         >
-          Strands &amp; Sections
+          Class Management
         </h2>
       </div>
 
@@ -291,6 +292,7 @@ function SectionsTab({ onToast }) {
   const [gradeFilter, setGradeFilter] = useState("All");
   const [modalMode, setModalMode]   = useState(null);
   const [activeSection, setActiveSection] = useState(null);
+  const [detailsSection, setDetailsSection] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   useEffect(() => { loadAll(); }, []);
@@ -354,7 +356,7 @@ function SectionsTab({ onToast }) {
           ))}
         </div>
         <button
-          onClick={() => { setActiveSection(null); setModalMode("create"); }}
+          onClick={() => { setActiveSection(null); setModalMode("wizard"); }}
           className="inline-flex items-center gap-2 rounded-lg bg-[#1B5E2C] text-white text-sm font-medium px-4 py-2.5 hover:bg-[#164A22] transition-colors shrink-0"
         >
           <span className="text-lg leading-none">+</span> Add Section
@@ -375,7 +377,8 @@ function SectionsTab({ onToast }) {
               <th className="px-5 py-3 font-medium">Section Name</th>
               <th className="px-5 py-3 font-medium">Grade</th>
               <th className="px-5 py-3 font-medium">Strand</th>
-              <th className="px-5 py-3 font-medium">Average Range</th>
+              <th className="px-5 py-3 font-medium">Students</th>
+              <th className="px-5 py-3 font-medium">Total Subjects</th>
               <th className="px-5 py-3 font-medium">Capacity</th>
               <th className="px-5 py-3 font-medium text-right">Actions</th>
             </tr>
@@ -384,14 +387,14 @@ function SectionsTab({ onToast }) {
             {loading ? (
               [...Array(4)].map((_, i) => (
                 <tr key={i} className="border-t border-[#EFF4ED]">
-                  <td colSpan={6} className="px-5 py-4">
+                  <td colSpan={7} className="px-5 py-4">
                     <div className="h-4 w-1/2 rounded bg-[#EFF4ED] animate-pulse" />
                   </td>
                 </tr>
               ))
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-[#86A18A]">
+                <td colSpan={7} className="px-5 py-10 text-center text-[#86A18A]">
                   No sections found.
                 </td>
               </tr>
@@ -407,13 +410,18 @@ function SectionsTab({ onToast }) {
                   <td className="px-5 py-3.5 text-[#5B6478]">
                     {sec.strand_name ?? <span className="text-[#CBD9C8]">JHS</span>}
                   </td>
-                  <td className="px-5 py-3.5 text-[#5B6478]">
-                    {sec.min_average} – {sec.max_average}
-                  </td>
+                  <td className="px-5 py-3.5 text-[#5B6478]">{sec.current_capacity ?? 0}</td>
+                  <td className="px-5 py-3.5 text-[#5B6478]">{sec.total_subjects ?? 0}</td>
                   <td className="px-5 py-3.5">
                     <CapacityBar current={sec.current_capacity} max={sec.max_capacity} />
                   </td>
                   <td className="px-5 py-3.5 text-right">
+                    <button
+                      onClick={() => setDetailsSection(sec)}
+                      className="text-[#1B5E2C] hover:text-[#164A22] text-sm font-medium mr-4"
+                    >
+                      View
+                    </button>
                     <button
                       onClick={() => { setActiveSection(sec); setModalMode("edit"); }}
                       className="text-[#8C6B12] hover:text-[#6E5410] text-sm font-medium mr-4"
@@ -457,12 +465,16 @@ function SectionsTab({ onToast }) {
                     Grade {sec.grade_level} · {sec.strand_name ?? "JHS"}
                   </p>
                 </div>
-                <span className="text-xs text-[#86A18A]">
-                  {sec.min_average}–{sec.max_average}
-                </span>
+                <span className="text-xs text-[#86A18A]">{sec.total_subjects ?? 0} subjects</span>
               </div>
               <CapacityBar current={sec.current_capacity} max={sec.max_capacity} />
               <div className="flex gap-4 mt-3 pt-3 border-t border-[#EFF4ED]">
+                <button
+                  onClick={() => setDetailsSection(sec)}
+                  className="text-[#1B5E2C] text-sm font-medium"
+                >
+                  View
+                </button>
                 <button
                   onClick={() => { setActiveSection(sec); setModalMode("edit"); }}
                   className="text-[#8C6B12] text-sm font-medium"
@@ -483,17 +495,38 @@ function SectionsTab({ onToast }) {
 
       {/* Section form modal */}
       {modalMode && (
-        <SectionFormModal
-          mode={modalMode}
-          section={activeSection}
-          strands={strands}
-          onClose={() => setModalMode(null)}
-          onSaved={(msg) => {
-            setModalMode(null);
-            onToast({ type: "success", text: msg });
-            loadAll();
-          }}
-          onError={(msg) => onToast({ type: "error", text: msg })}
+        modalMode === "wizard" ? (
+          <SectionCreationWizard
+            strands={strands}
+            existingSections={sections}
+            onClose={() => setModalMode(null)}
+            onSaved={(msg) => {
+              setModalMode(null);
+              onToast({ type: "success", text: msg });
+              loadAll();
+            }}
+            onError={(msg) => onToast({ type: "error", text: msg })}
+          />
+        ) : (
+          <SectionFormModal
+            mode={modalMode}
+            section={activeSection}
+            strands={strands}
+            onClose={() => setModalMode(null)}
+            onSaved={(msg) => {
+              setModalMode(null);
+              onToast({ type: "success", text: msg });
+              loadAll();
+            }}
+            onError={(msg) => onToast({ type: "error", text: msg })}
+          />
+        )
+      )}
+
+      {detailsSection && (
+        <SectionDetailsModal
+          section={detailsSection}
+          onClose={() => setDetailsSection(null)}
         />
       )}
 
@@ -509,6 +542,123 @@ function SectionsTab({ onToast }) {
   );
 }
 
+function SectionDetailsModal({ section, onClose }) {
+  const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+  const [studentsError, setStudentsError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    async function loadStudents() {
+      try {
+        const response = await fetch(`${API_BASE}/get_enrolled_students.php`, { credentials: "include" });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.message ?? "Could not load students assigned to this section.");
+        }
+        if (active) {
+          setStudents((data.students ?? []).filter((student) =>
+            String(student.grade_level) === String(section.grade_level)
+            && student.section_name === section.section_name
+          ));
+        }
+      } catch (error) {
+        if (active) setStudentsError(error.message || "Could not reach the server.");
+      } finally {
+        if (active) setStudentsLoading(false);
+      }
+    }
+    loadStudents();
+    return () => { active = false; };
+  }, [section.grade_level, section.section_name]);
+
+  const subjects = section.subjects ?? [];
+  const timetable = section.timetable ?? [];
+
+  return (
+    <Modal title={`${section.section_name} — Grade ${section.grade_level}`} onClose={onClose} wide>
+      <div className="space-y-5">
+        <section>
+          <h3 className="text-sm font-semibold text-[#1B5E2C] mb-2">Students</h3>
+          {studentsLoading ? (
+            <p className="text-sm text-[#86A18A]">Loading students…</p>
+          ) : studentsError ? (
+            <Err msg={studentsError} />
+          ) : students.length === 0 ? (
+            <p className="text-sm text-[#86A18A]">No students are assigned to this section.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-[#D9E8D5]">
+              <table className="w-full text-sm">
+                <thead className="bg-[#FAFAF5] text-left text-[#5B6478]">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Student</th>
+                    <th className="px-3 py-2 font-medium">LRN</th>
+                    <th className="px-3 py-2 font-medium">Enrollment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((student) => (
+                    <tr key={student.lrn ?? student.student_id ?? student.name} className="border-t border-[#EFF4ED]">
+                      <td className="px-3 py-2 text-[#1B5E2C]">{student.name}</td>
+                      <td className="px-3 py-2 text-[#5B6478]">{student.lrn ?? "—"}</td>
+                      <td className="px-3 py-2 text-[#5B6478]">{student.enrollment_status ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section>
+          <h3 className="text-sm font-semibold text-[#1B5E2C] mb-2">
+            Subjects <span className="font-normal text-[#86A18A]">({section.total_subjects ?? subjects.length})</span>
+          </h3>
+          {subjects.length === 0 ? (
+            <p className="text-sm text-[#86A18A]">No subjects configured.</p>
+          ) : (
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {subjects.map((subject, index) => (
+                <li key={`${subject.subject_name}-${index}`} className="rounded-lg bg-[#FAFAF5] px-3 py-2 text-sm text-[#5B6478]">
+                  {subject.display_order ?? index + 1}. {subject.subject_name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section>
+          <h3 className="text-sm font-semibold text-[#1B5E2C] mb-2">Timetable</h3>
+          {timetable.length === 0 ? (
+            <p className="text-sm text-[#86A18A]">No timetable configured.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-[#D9E8D5]">
+              <table className="w-full text-sm">
+                <thead className="bg-[#FAFAF5] text-left text-[#5B6478]">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Day</th>
+                    <th className="px-3 py-2 font-medium">Time</th>
+                    <th className="px-3 py-2 font-medium">Subject</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {timetable.map((slot) => (
+                    <tr key={slot.timetable_id} className="border-t border-[#EFF4ED]">
+                      <td className="px-3 py-2 text-[#5B6478]">{slot.day}</td>
+                      <td className="px-3 py-2 text-[#5B6478]">{slot.start_time}–{slot.end_time}</td>
+                      <td className="px-3 py-2 text-[#1B5E2C]">{slot.subject_name}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    </Modal>
+  );
+}
+
 function SectionFormModal({ mode, section, strands, onClose, onSaved, onError }) {
   const isEdit = mode === "edit";
   const [form, setForm] = useState({
@@ -516,8 +666,6 @@ function SectionFormModal({ mode, section, strands, onClose, onSaved, onError })
     grade_level:  section?.grade_level  ?? "7",
     strand_id:    section?.strand_id    ?? "",
     max_capacity: section?.max_capacity ?? "",
-    min_average:  section?.min_average  ?? "",
-    max_average:  section?.max_average  ?? "",
   });
   const [errors, setErrors]         = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -535,12 +683,6 @@ function SectionFormModal({ mode, section, strands, onClose, onSaved, onError })
     if (!form.section_name.trim()) next.section_name = "Section name is required.";
     if (!form.max_capacity || isNaN(form.max_capacity) || Number(form.max_capacity) < 1)
       next.max_capacity = "Enter a valid capacity.";
-    if (form.min_average === "" || isNaN(form.min_average))
-      next.min_average = "Enter a valid minimum average.";
-    if (form.max_average === "" || isNaN(form.max_average))
-      next.max_average = "Enter a valid maximum average.";
-    if (Number(form.min_average) >= Number(form.max_average))
-      next.max_average = "Max average must be greater than min average.";
     if (isSHS && !form.strand_id)
       next.strand_id = "Select a strand for SHS sections.";
     setErrors(next);
@@ -628,44 +770,6 @@ function SectionFormModal({ mode, section, strands, onClose, onSaved, onError })
               ))}
             </select>
             {errors.strand_id && <Err msg={errors.strand_id} />}
-          </div>
-
-          {/* Min average */}
-          <div>
-            <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">
-              Min average
-            </label>
-            <input
-              name="min_average"
-              type="number"
-              step="0.01"
-              min="0"
-              max="100"
-              value={form.min_average}
-              onChange={handleChange}
-              placeholder="e.g. 75"
-              className={inputCls(errors.min_average)}
-            />
-            {errors.min_average && <Err msg={errors.min_average} />}
-          </div>
-
-          {/* Max average */}
-          <div>
-            <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">
-              Max average
-            </label>
-            <input
-              name="max_average"
-              type="number"
-              step="0.01"
-              min="0"
-              max="100"
-              value={form.max_average}
-              onChange={handleChange}
-              placeholder="e.g. 100"
-              className={inputCls(errors.max_average)}
-            />
-            {errors.max_average && <Err msg={errors.max_average} />}
           </div>
 
           {/* Max capacity */}

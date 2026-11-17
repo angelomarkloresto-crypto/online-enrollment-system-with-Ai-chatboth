@@ -1,53 +1,198 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import {
+  EMPTY_LEARNER_DISCLOSURES,
+  enrollmentDisclosurePayload,
+  validateLearnerDisclosures,
+} from "../../utils/learnerDisclosures";
+import LearnerDisclosureFields from "../../components/LearnerDisclosureFields";
 
 
 
 // const OCR_BASE     = "http://localhost/backend-online-enrollment/ocr";
 // const STUDENT_BASE = "http://localhost/backend-online-enrollment/student";
 // const STAFF_BASE   = "http://localhost/backend-online-enrollment/staff";
-export const getOcrApiBase = () => "/backend-online-enrollment/ocr";
-export const getStudentApiBase = () => "/backend-online-enrollment/student";
-export const getApiBase = () => "/backend-online-enrollment/student";
+const getOcrApiBase = () => "/backend-online-enrollment/ocr";
+const getStudentApiBase = () => "/backend-online-enrollment/student";
+const getApiBase = () => "/backend-online-enrollment/student";
 
-
-const STUDENT_TYPES = [
-  { value: "New Jr High", label: "New Jr. High (Grade 7)" },
-  { value: "Old Jr High",  label: "Old Jr. High" },
-  { value: "Senior High",  label: "Senior High" },
-  { value: "Returning",    label: "Returning" },
-];
 
 const SHS_GRADES = ["11","12"];
 
-// Which grade-level buttons are offered for each student type.
-const GRADE_OPTIONS_BY_TYPE = {
-  "New Jr High": ["7"],
-  "Old Jr High":  ["8","9","10"],
-  "Senior High":  ["11","12"],
-  "Returning":    ["7","8","9","10","11","12"],
-};
-
 const STEP_META = {
-  info:         { label: "Enrollment Info",  desc: "Student type & grade level" },
+  info:         { label: "Enrollment Info",  desc: "Period eligibility & grade level" },
   scan:         { label: "Report Card Scan", desc: "Upload & scan your report card" },
   requirements: { label: "Requirements",     desc: "Upload supporting documents" },
   review:       { label: "Review & Submit",  desc: "Confirm and submit" },
 };
 
 export default function EnrollmentForm({ onBack }) {
-  const studentId = localStorage.getItem("student_id");
+  const [periods, setPeriods] = useState([]);
+  const [periodsLoading, setPeriodsLoading] = useState(true);
+  const [periodsError, setPeriodsError] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    async function loadPeriods() {
+      setPeriodsLoading(true);
+      setPeriodsError("");
+      try {
+        const response = await fetch(`${getStudentApiBase()}/get_enrollment_periods.php`, { credentials: "include" });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Enrollment availability could not be checked.");
+        }
+        if (active) setPeriods(Array.isArray(data.periods) ? data.periods : []);
+      } catch (error) {
+        if (active) setPeriodsError(error.message || "Enrollment availability could not be checked.");
+      } finally {
+        if (active) setPeriodsLoading(false);
+      }
+    }
+    loadPeriods();
+    return () => { active = false; };
+  }, []);
+
+  if (selectedPeriod) {
+    return (
+      <EnrollmentWizard
+        enrollmentPeriod={selectedPeriod}
+        onBack={onBack}
+        onChangePeriod={() => setSelectedPeriod(null)}
+      />
+    );
+  }
+
+  return (
+    <EnrollmentPeriodPicker
+      periods={periods}
+      loading={periodsLoading}
+      error={periodsError}
+      onBack={onBack}
+      onSelect={setSelectedPeriod}
+    />
+  );
+}
+
+function EnrollmentPeriodPicker({ periods, loading, error, onBack, onSelect }) {
+  function canEnroll(period) {
+    const latestStatus = String(period.latest_attempt?.status || "").toLowerCase();
+    return String(period.status).toLowerCase() === "open"
+      && period.eligible === true
+      && latestStatus !== "pending"
+      && latestStatus !== "approved";
+  }
+
+  function periodStatus(period) {
+    const latestStatus = String(period.latest_attempt?.status || "");
+    if (latestStatus.toLowerCase() === "pending") return "Your application for this period is pending review.";
+    if (latestStatus.toLowerCase() === "approved") return "Your enrollment for this period has been approved.";
+    if (latestStatus.toLowerCase() === "rejected") {
+      return period.eligible && String(period.status).toLowerCase() === "open"
+        ? `Your previous application was rejected. You may revise and resubmit while this period is open.${period.latest_attempt.rejection_reason ? ` Reason: ${period.latest_attempt.rejection_reason}` : ""}`
+        : String(period.status).toLowerCase() !== "open"
+          ? "Your previous application was rejected, but this enrollment period is closed."
+          : period.eligibility_message || "This period is not available for a new application.";
+    }
+    if (String(period.status).toLowerCase() !== "open") return "Enrollment is closed for this period.";
+    if (period.eligible) return "You are eligible to submit an enrollment application.";
+    return period.eligibility_message || "You are not currently eligible for this period.";
+  }
+
+  return (
+    <div className="px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-2xl">
+        <button onClick={onBack} className="mb-5 flex items-center gap-1.5 text-sm text-[#0B2B26]/55 transition-colors hover:text-[#0B2B26]">
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
+            <path d="M13 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Back to Dashboard
+        </button>
+        <div className="mb-6">
+          <p className="mb-1 text-xs uppercase tracking-[0.15em] text-[#163832]">Student Portal</p>
+          <h2 className="text-2xl text-[#0B2B26]" style={{ fontFamily: "'Fraunces', serif" }}>Enrollment Availability</h2>
+          <p className="mt-1 text-sm text-[#0B2B26]/60">Choose an open period for which the school has confirmed your eligibility.</p>
+        </div>
+        {error && <p role="alert" className="mb-4 rounded-xl border border-[#B3492B]/30 bg-[#B3492B]/10 px-4 py-3 text-sm text-[#B3492B]">{error}</p>}
+        {loading ? (
+          <div className="rounded-2xl border border-[#718e68] bg-[#8BA77F] px-5 py-12 text-center text-sm text-[#0B2B26]">Checking enrollment periods…</div>
+        ) : error ? (
+          <div className="rounded-2xl border border-[#718e68] bg-[#8BA77F] px-5 py-8 text-center text-sm text-[#0B2B26]">
+            The enrollment period could not be checked. Please try again later or contact the school.
+          </div>
+        ) : periods.length === 0 ? (
+          <div className="rounded-2xl border border-[#718e68] bg-[#8BA77F] px-5 py-8 text-center text-sm text-[#0B2B26]">
+            Enrollment is currently closed. No enrollment periods are available.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {periods.map((period) => {
+              const eligibleNow = canEnroll(period);
+              const coverage = period.coverage === "shs_second_semester"
+                ? "Senior High School · 2nd Semester"
+                : "All Grade Levels";
+              return (
+                <section key={period.enrollment_period_id} className="rounded-2xl border border-[#718e68] bg-[#8BA77F] p-4 shadow-[4px_5px_0_rgba(45,55,40,0.25)] sm:p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-medium text-[#0B2B26]" style={{ fontFamily: "'Fraunces', serif" }}>{period.school_year}</h3>
+                      <p className="mt-0.5 text-sm text-[#0B2B26]/70">{coverage} · {period.semester || "Semester unavailable"}</p>
+                      {period.eligible_grade_level && (
+                        <p className="mt-1 text-sm font-medium text-[#0B2B26]">
+                          Eligible grade: {period.eligible_grade_level}{period.eligible_semester ? ` · ${period.eligible_semester}` : ""}
+                        </p>
+                      )}
+                    </div>
+                    <span className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${eligibleNow ? "bg-[#0B2B26] text-white" : "bg-white/50 text-[#0B2B26]"}`}>
+                      {period.status}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm text-[#0B2B26]/80">{periodStatus(period)}</p>
+                  {period.latest_attempt?.submitted_at && (
+                    <p className="mt-1 text-xs text-[#0B2B26]/60">
+                      Submitted: {new Date(String(period.latest_attempt.submitted_at).replace(" ", "T")).toLocaleString()}
+                    </p>
+                  )}
+                  {eligibleNow && (
+                    <button
+                      type="button"
+                      onClick={() => onSelect(period)}
+                      className="mt-4 rounded-lg bg-[#0B2B26] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#051F20]"
+                    >
+                      {String(period.latest_attempt?.status || "").toLowerCase() === "rejected" ? "Revise and Resubmit" : "Start Enrollment"}
+                    </button>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EnrollmentWizard({ onBack, enrollmentPeriod, onChangePeriod }) {
+  const submitLock = useRef(false);
 
   const [step, setStep] = useState(1);
 
   /* ── Step 1 state ── */
-  const [enrollInfo, setEnrollInfo] = useState({
-    student_type: "New Jr High",
-    grade_level:  "7",
-    strand_id:    "",
+  const [enrollInfo, setEnrollInfo] = useState(() => {
+    const gradeLevel = String(enrollmentPeriod.eligible_grade_level || "");
+    return {
+      student_type: gradeLevel === "7" ? "New Jr High" : "Returning",
+      grade_level: gradeLevel,
+      semester: String(enrollmentPeriod.eligible_semester || ""),
+      strand_id: "",
+    };
   });
   const [strands, setStrands]       = useState([]);
+  const [strandsLoading, setStrandsLoading] = useState(false);
   const [infoErrors, setInfoErrors] = useState({});
+  const [strandsError, setStrandsError] = useState("");
+  const [learnerDisclosures, setLearnerDisclosures] = useState({ ...EMPTY_LEARNER_DISCLOSURES });
 
   /* ── Step 2 state ── */
   const [frontFile, setFrontFile]   = useState(null);  // File object
@@ -66,8 +211,6 @@ export default function EnrollmentForm({ onBack }) {
   const [psaName, setPsaName]           = useState("");
   const [goodMoralFile, setGoodMoralFile]   = useState(null);
   const [goodMoralName, setGoodMoralName]   = useState("");
-  const [cotFile, setCotFile]           = useState(null);
-  const [cotName, setCotName]           = useState("");
   const [reqErrors, setReqErrors]       = useState({});
   const [uploading, setUploading]       = useState({});  // { psa: bool, etc }
 
@@ -77,46 +220,35 @@ export default function EnrollmentForm({ onBack }) {
   const [assignError, setAssignError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null); // {success, message}
-  const [enrollmentStatus, setEnrollmentStatus] = useState(null); // 'Approved', 'Rejected', 'Pending', or null
-  const [statusCheckError, setStatusCheckError] = useState(null);
 
   const isSHS         = SHS_GRADES.includes(enrollInfo.grade_level);
-  const isNewJrHigh   = enrollInfo.student_type === "New Jr High";
-  const isTransferee  = enrollInfo.student_type === "Transferee";
-  const isFirstTimeEnrollment = isNewJrHigh || enrollInfo.student_type === "Senior High";
-
-  // Requirements (PSA Birth Certificate + Good Moral) are only needed for
-  // students who don't already have a record with the school: a brand new
-  // Grade 7, a transferee coming from elsewhere, or a student stepping into
-  // Senior High for the first time (Grade 11). Old Jr High, Returning, and
-  // continuing Grade 12 students already have these on file.
-  const needsRequirements = isFirstTimeEnrollment || isTransferee;
+  const needsRequirements = enrollInfo.grade_level === "7";
 
   // Requirements step only appears in the wizard when it's actually needed.
   const activeStepKeys = needsRequirements ? ["info","scan","requirements","review"] : ["info","scan","review"];
   const STEPS    = activeStepKeys.map((k) => STEP_META[k]);
   const stepKey  = activeStepKeys[step - 1];
-  const gradeOptions = GRADE_OPTIONS_BY_TYPE[enrollInfo.student_type] ?? [];
 
-  function handleStudentTypeChange(type) {
-    const opts = GRADE_OPTIONS_BY_TYPE[type] ?? [];
-    // New Jr High is always Grade 7 — auto-select it. Everything else
-    // requires an explicit grade pick, so clear the previous selection if
-    // it isn't valid for the newly chosen type.
-    const nextGrade = type === "New Jr High" ? "7" : (opts.includes(enrollInfo.grade_level) ? enrollInfo.grade_level : "");
-    setEnrollInfo({ student_type: type, grade_level: nextGrade, strand_id: "" });
-    setInfoErrors({});
-  }
-
-  useEffect(() => { fetchStrands(); }, []);
-
-  async function fetchStrands() {
-    try {
-      const res  = await fetch(`${getApiBase()}/get_strand.php`, { credentials: "include" });
-      const data = await res.json();
-      if (data.success) setStrands(data.strands ?? []);
-    } catch { /* silently ignore */ }
-  }
+  useEffect(() => {
+    if (!SHS_GRADES.includes(String(enrollmentPeriod.eligible_grade_level))) return undefined;
+    let active = true;
+    async function fetchStrands() {
+      setStrandsLoading(true);
+      setStrandsError("");
+      try {
+        const res = await fetch(`${getApiBase()}/get_strand.php`, { credentials: "include" });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || "Strands could not be loaded.");
+        if (active) setStrands(Array.isArray(data.strands) ? data.strands : []);
+      } catch (error) {
+        if (active) setStrandsError(error.message || "Strands could not be loaded.");
+      } finally {
+        if (active) setStrandsLoading(false);
+      }
+    }
+    fetchStrands();
+    return () => { active = false; };
+  }, [enrollmentPeriod.eligible_grade_level]);
 
   /* ══════════════════════════════════
      STEP 1 — validate & next
@@ -126,8 +258,19 @@ export default function EnrollmentForm({ onBack }) {
     if (!enrollInfo.student_type) errs.student_type = "Required.";
     if (!enrollInfo.grade_level)  errs.grade_level  = "Required.";
     if (isSHS && !enrollInfo.strand_id) errs.strand_id = "Select a strand for SHS.";
+    Object.assign(errs, validateLearnerDisclosures(learnerDisclosures));
     setInfoErrors(errs);
     return Object.keys(errs).length === 0;
+  }
+
+  function handleLearnerDisclosureChange(name, value) {
+    setLearnerDisclosures((previous) => ({ ...previous, [name]: value }));
+    setInfoErrors((previous) => ({
+      ...previous,
+      [name]: undefined,
+      ...(name === "is_pwd" ? { pwd_specification: undefined } : {}),
+      ...(name === "is_4ps_beneficiary" ? { four_ps_household_id: undefined } : {}),
+    }));
   }
 
   /* ══════════════════════════════════
@@ -226,7 +369,6 @@ export default function EnrollmentForm({ onBack }) {
     const errs = {};
     if (!psaName)       errs.psa       = "PSA Birth Certificate is required.";
     if (!goodMoralName) errs.goodMoral = "Good Moral is required.";
-    if (isTransferee && !cotName) errs.cot = "Certificate of Transfer is required for transferees.";
     setReqErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -234,78 +376,53 @@ export default function EnrollmentForm({ onBack }) {
   /* ══════════════════════════════════
      STEP 4 — assign section + submit
   ══════════════════════════════════ */
-  async function checkEnrollmentStatus() {
-    try {
-      const res = await fetch(`${getStudentApiBase()}/check_enrollment_status.php?student_id=${studentId}`, { credentials: "include" });
-      const data = await res.json();
-      if (data.success && data.has_enrollment) {
-        setEnrollmentStatus(data.enrollment_status);
-        return data.enrollment_status;
-      }
-      setEnrollmentStatus(null);
-      return null;
-    } catch (err) {
-      setStatusCheckError(err.message ?? "Could not check enrollment status.");
-      return null;
-    }
-  }
-
   async function handleGoToReview() {
     if (needsRequirements && !validateRequirements()) return;
-    
-    // Check if student is already approved/enrolled
     setAssigning(true);
     setAssignError(null);
-    setStatusCheckError(null);
-    
-    const currentStatus = await checkEnrollmentStatus();
-    if (currentStatus === "Approved") {
-      setAssigning(false);
-      setAssignError("You are already enrolled. Contact your administrator if you need to modify your enrollment.");
-      return;
-    }
-    
     setStep(activeStepKeys.length); // jump to the "review" step, wherever it lands
     setAssignedSection(null);
     try {
+      const assignmentPayload = { grade_level: Number(enrollInfo.grade_level) };
+      if (isSHS) assignmentPayload.strand_id = Number(enrollInfo.strand_id);
       const res  = await fetch(`${getOcrApiBase()}/assign_section.php`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          grade_level: enrollInfo.grade_level,
-          average:     Number(ocrAverage),
-        }),
+        body: JSON.stringify(assignmentPayload),
       });
       const data = await res.json();
-      if (data.success) {
-        // Store both section_id (for capacity) and section_name (for section_assigned column)
-        setAssignedSection({ section_id: data.section_id, section_name: data.section_name });
-      } else {
-        setAssignError(data.message ?? "No available section found for your average.");
-      }
-    } catch { setAssignError("Could not reach the server."); }
+      if (!res.ok || !data.success) throw new Error(data.message || "No available heterogeneous section was found.");
+      setAssignedSection({ section_id: data.section_id, section_name: data.section_name });
+    } catch (error) {
+      setAssignError(error.message || "Could not reach the server.");
+    }
     finally  { setAssigning(false); }
   }
 
   async function handleSubmit() {
-    if (!assignedSection) return;
+    if (!assignedSection || submitLock.current) return;
+    submitLock.current = true;
     setSubmitting(true);
     setSubmitResult(null);
     try {
+      const periodId = Number(enrollmentPeriod.enrollment_period_id);
+      if (!Number.isSafeInteger(periodId) || periodId < 1) {
+        throw new Error("The selected enrollment period is invalid. Please choose an available period again.");
+      }
       const payload = {
-        student_id:        studentId,
-        student_type:      enrollInfo.student_type, // "New Jr High" | "Old Jr High" | "Senior High" | "Transferee" | "Returning" — NOTE: confirm backend enum/mapping accepts these exact values
+        enrollment_period_id: periodId,
+        student_type:      enrollInfo.student_type,
         grade_level:       enrollInfo.grade_level,
-        strand_id:         isSHS ? enrollInfo.strand_id : null,
+        semester:          enrollInfo.semester,
+        strand_id:         isSHS ? Number(enrollInfo.strand_id) : null,
         average_grade:     Number(ocrAverage),
-        section_id:        assignedSection.section_id,   // for capacity update
-        section_name:      assignedSection.section_name, // stored in section_assigned column
+        section_id:        Number(assignedSection.section_id),
         report_card_front: frontName,
         report_card_back:  backName,
         birth_certificate: psaName       || null,
         good_moral:        goodMoralName || null,
-        certificate_of_transfer: cotName || null,
+        ...enrollmentDisclosurePayload(learnerDisclosures),
       };
       const res  = await fetch(`${getStudentApiBase()}/submit_enrollment.php`, {
         method: "POST",
@@ -314,19 +431,23 @@ export default function EnrollmentForm({ onBack }) {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Enrollment could not be submitted.");
+      if (Number(data.enrollment_period_id) !== periodId) {
+        throw new Error("The submitted enrollment period could not be verified. Please contact the school before submitting again.");
+      }
       setSubmitResult({ success: data.success, message: data.message });
 
       if (data.success) {
-        localStorage.removeItem("student_id");
-        localStorage.removeItem("student_name");
-        localStorage.removeItem("student_gmail");
-
         setTimeout(() => {
-          window.location.href = "/student/login";
+          window.location.href = "/student/dashboard";
         }, 1200);
       }
-    } catch { setSubmitResult({ success: false, message: "Could not reach the server." }); }
-    finally  { setSubmitting(false); }
+    } catch (error) {
+      setSubmitResult({ success: false, message: error.message || "Could not reach the server." });
+    } finally {
+      submitLock.current = false;
+      setSubmitting(false);
+    }
   }
 
   const pctW = `${(step / STEPS.length) * 100}%`;
@@ -338,13 +459,38 @@ export default function EnrollmentForm({ onBack }) {
     <div className="px-4 sm:px-6 py-6">
       <div className="max-w-xl mx-auto">
 
-        {/* Back */}
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-[#0B2B26]/45 hover:text-[#0B2B26] mb-5 transition-colors">
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
-            <path d="M13 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          Back to Dashboard
-        </button>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-[#0B2B26]/45 transition-colors hover:text-[#0B2B26]">
+            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
+              <path d="M13 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Back to Dashboard
+          </button>
+          <button type="button" onClick={onChangePeriod} className="text-sm font-medium text-[#155000] underline">
+            Choose another period
+          </button>
+        </div>
+
+        <section
+          aria-label="Selected enrollment period"
+          className="mb-5 rounded-2xl border border-[#0B2B26] bg-[#0B2B26] px-5 py-4 text-white shadow-[4px_5px_0_rgba(45,55,40,0.2)]"
+        >
+          <p className="text-xs font-medium uppercase tracking-[0.15em] text-[#DAF1DE]/75">
+            Selected Enrollment Period
+          </p>
+          <h2 className="mt-1 text-2xl font-semibold" style={{ fontFamily: "'Fraunces', serif" }}>
+            School Year: {String(enrollmentPeriod.school_year || "Unavailable").replace(/^(\d{4})-(\d{4})$/, "$1–$2")}
+          </h2>
+          <p className="mt-1 text-sm text-[#DAF1DE]">
+            {enrollmentPeriod.coverage === "shs_second_semester"
+              ? "Senior High School · 2nd Semester"
+              : enrollmentPeriod.coverage === "all_grade_levels"
+                ? "All Grade Levels"
+                : "Coverage unavailable"}
+            {" · "}
+            {enrollmentPeriod.semester || "Semester unavailable"}
+          </p>
+        </section>
 
         {/* Header */}
         <div className="mb-6">
@@ -352,6 +498,10 @@ export default function EnrollmentForm({ onBack }) {
           <h2 className="text-2xl text-[#0B2B26]" style={{ fontFamily: "'Fraunces', serif" }}>
             Enrollment Form
           </h2>
+          <p className="mt-1 text-sm text-[#0B2B26]/60">
+            Grade {enrollInfo.grade_level || enrollmentPeriod.eligible_grade_level || "to be assigned"}
+            {enrollInfo.semester ? ` · ${enrollInfo.semester}` : ""}
+          </p>
         </div>
 
         {/* Progress */}
@@ -402,65 +552,32 @@ export default function EnrollmentForm({ onBack }) {
           {/* ── STEP: info ── */}
           {stepKey === "info" && (
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">Student Type *</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {STUDENT_TYPES.map((t) => (
-                    <button
-                      key={t.value} type="button"
-                      onClick={() => handleStudentTypeChange(t.value)}
-                      className={`rounded-lg border py-2.5 px-3 text-sm font-medium text-left transition-colors ${
-                        enrollInfo.student_type === t.value
-                          ? "bg-[#0B2B26] text-white border-[#0B2B26]"
-                          : "border-[#235347]/25 text-[#0B2B26]/70 hover:border-[#0B2B26]"
-                      }`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-                {infoErrors.student_type && <Err msg={infoErrors.student_type} />}
+              <div className="rounded-lg border border-[#0B2B26]/20 bg-white/30 px-4 py-3">
+                <p className="text-xs text-[#0B2B26]/60">Enrollment type</p>
+                <p className="mt-0.5 text-sm font-medium text-[#0B2B26]">{enrollInfo.student_type}</p>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">Grade Level *</label>
-                {isNewJrHigh ? (
-                  <div className="rounded-lg border border-[#0B2B26] bg-[#0B2B26]/5 px-4 py-2.5 text-sm font-medium text-[#0B2B26]">
-                    Grade 7 — fixed for new junior high enrollees
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                    {gradeOptions.map((g) => (
-                      <button
-                        key={g} type="button"
-                        onClick={() => { setEnrollInfo((p) => ({ ...p, grade_level: g, strand_id: "" })); setInfoErrors((p) => ({ ...p, grade_level: undefined })); }}
-                        className={`rounded-lg border py-2.5 text-sm font-medium transition-colors ${
-                          enrollInfo.grade_level === g
-                            ? "bg-[#0B2B26] text-white border-[#0B2B26]"
-                            : "border-[#235347]/25 text-[#0B2B26]/70 hover:border-[#0B2B26]"
-                        }`}
-                      >
-                        G{g}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {infoErrors.grade_level && <Err msg={infoErrors.grade_level} />}
+              <div className="rounded-lg border border-[#0B2B26] bg-[#0B2B26]/5 px-4 py-3">
+                <p className="text-xs text-[#0B2B26]/60">Grade and semester assigned by enrollment eligibility</p>
+                <p className="mt-0.5 text-sm font-medium text-[#0B2B26]">
+                  Grade {enrollInfo.grade_level}{enrollInfo.semester ? ` · ${enrollInfo.semester}` : ""}
+                </p>
               </div>
 
               {needsRequirements && (
                 <p className="text-xs text-[#163832] bg-[#8EB69B]/10 border border-[#8EB69B]/30 rounded-lg px-3 py-2">
-                  {isTransferee
-                    ? "As a transferee, you'll need to upload your report card and requirements (PSA Birth Certificate, Good Moral, and Certificate of Transfer)."
-                    : "First-time enrollment requires a PSA Birth Certificate and Good Moral Certificate, in addition to your report card."}
+                  Grade 7 enrollment requires a PSA Birth Certificate and Good Moral Certificate, in addition to your report card.
                 </p>
               )}
 
               {isSHS && (
                 <div>
                   <label className="block text-sm font-medium text-[#0B2B26] mb-1.5">Strand *</label>
-                  {strands.length === 0 ? (
+                  {strandsError ? (
+                    <p role="alert" className="text-sm text-[#B3492B]">{strandsError}</p>
+                  ) : strandsLoading ? (
                     <p className="text-sm text-[#0B2B26]/45">Loading strands…</p>
+                  ) : strands.length === 0 ? (
+                    <p className="text-sm text-[#B3492B]">No strands are available for this enrollment period.</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       {strands.map((s) => (
@@ -481,6 +598,11 @@ export default function EnrollmentForm({ onBack }) {
                   {infoErrors.strand_id && <Err msg={infoErrors.strand_id} />}
                 </div>
               )}
+              <LearnerDisclosureFields
+                values={learnerDisclosures}
+                errors={infoErrors}
+                onChange={handleLearnerDisclosureChange}
+              />
             </div>
           )}
 
@@ -568,9 +690,7 @@ export default function EnrollmentForm({ onBack }) {
               <div className="bg-[#DAF1DE]/40 rounded-xl border border-[#235347]/15 p-3 text-xs text-[#0B2B26]/70">
                 <span className="font-medium text-[#0B2B26]">Note:</span> Upload JPG or PNG images only, max 10MB each.
                 <span className="block mt-1 text-[#163832] font-medium">
-                  {isTransferee
-                    ? "PSA Birth Certificate, Good Moral, and Certificate of Transfer are required for transferees."
-                    : "PSA Birth Certificate and Good Moral are required."}
+                  PSA Birth Certificate and Good Moral are required for Grade 7 enrollment.
                 </span>
               </div>
 
@@ -598,19 +718,6 @@ export default function EnrollmentForm({ onBack }) {
                 }}
               />
 
-              {/* Certificate of Transfer — required for transferees */}
-              {isTransferee && (
-                <ReqUpload
-                  label="Certificate of Transfer *"
-                  file={cotFile}
-                  uploading={uploading.cot}
-                  uploaded={!!cotName}
-                  error={reqErrors.cot}
-                  onFileSelect={(f) => {
-                    if (f) handleReqUpload("cot", f, setCotFile, setCotName);
-                  }}
-                />
-              )}
             </div>
           )}
 
@@ -621,17 +728,12 @@ export default function EnrollmentForm({ onBack }) {
               {assigning && (
                 <div className="flex items-center gap-3 bg-[#8EB69B]/10 rounded-xl border border-[#8EB69B]/30 px-4 py-3">
                   <div className="h-5 w-5 rounded-full border-2 border-[#163832] border-t-transparent animate-spin shrink-0" />
-                  <p className="text-sm text-[#163832]">Checking enrollment status…</p>
+                  <p className="text-sm text-[#163832]">Assigning a heterogeneous section…</p>
                 </div>
               )}
               {assignError && (
                 <div className="bg-[#B3492B]/10 border border-[#B3492B]/30 text-[#B3492B] rounded-xl px-4 py-3 text-sm">
                   {assignError}
-                </div>
-              )}
-              {statusCheckError && (
-                <div className="bg-[#B3492B]/10 border border-[#B3492B]/30 text-[#B3492B] rounded-xl px-4 py-3 text-sm">
-                  {statusCheckError}
                 </div>
               )}
               {assignedSection && (
@@ -644,7 +746,9 @@ export default function EnrollmentForm({ onBack }) {
               {/* Summary */}
               <div className="bg-[#DAF1DE]/40 rounded-xl border border-[#235347]/15 divide-y divide-[#DAF1DE]/60">
                 <SummaryRow label="Student Type"    value={enrollInfo.student_type} />
-                <SummaryRow label="Grade Level"     value={`Grade ${enrollInfo.grade_level}`} />
+                <SummaryRow label="Grade Level"     value={`Grade ${enrollInfo.grade_level}${enrollInfo.semester ? ` — ${enrollInfo.semester}` : ""}`} />
+                <SummaryRow label="School Year"     value={enrollmentPeriod.school_year} />
+                <SummaryRow label="Enrollment Period" value={enrollmentPeriod.semester || "1st sem"} />
                 {isSHS && (
                   <SummaryRow label="Strand" value={strands.find((s) => String(s.strand_id) === enrollInfo.strand_id)?.strand_name ?? "—"} />
                 )}
@@ -654,9 +758,6 @@ export default function EnrollmentForm({ onBack }) {
                   <>
                     <SummaryRow label="PSA Certificate" value={psaName ? "Uploaded ✓" : "Not uploaded"} />
                     <SummaryRow label="Good Moral"      value={goodMoralName ? "Uploaded ✓" : "Not uploaded"} />
-                    {isTransferee && (
-                      <SummaryRow label="Transfer Certificate" value={cotName ? "Uploaded ✓" : "Not uploaded"} />
-                    )}
                   </>
                 )}
               </div>
@@ -716,7 +817,7 @@ export default function EnrollmentForm({ onBack }) {
                   Next → Review
                 </button>
               )}
-              {stepKey === "review" && !assigning && !assignError && !statusCheckError && assignedSection && (
+              {stepKey === "review" && !assigning && !assignError && assignedSection && (
                 <button
                   onClick={handleSubmit}
                   disabled={submitting}
@@ -730,7 +831,7 @@ export default function EnrollmentForm({ onBack }) {
 
           {submitResult?.success && (
             <div className="mt-6 rounded-lg border border-[#0B2B26]/20 bg-[#0B2B26]/5 px-4 py-3 text-sm text-[#0B2B26]">
-              Redirecting to the login page to sign in with your Gmail and LRN password…
+              Enrollment submitted successfully. Redirecting to your dashboard…
             </div>
           )}
         </motion.div>

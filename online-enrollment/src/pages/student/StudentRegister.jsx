@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { normalizePhilippineMobileNumber } from "../../utils/studentPhone";
+import {
+  EMPTY_LEARNER_DISCLOSURES,
+  enrollmentDisclosurePayload,
+  validateLearnerDisclosures,
+} from "../../utils/learnerDisclosures";
+import LearnerDisclosureFields from "../../components/LearnerDisclosureFields";
+import Hirumi from "../AI assistant/Hirumi";
 
 
 
@@ -31,20 +39,53 @@ const SCHOOL_LEVELS = [
 
 const SHS_GRADES = ["11","12"];
 
-const GRADE_OPTIONS_BY_TYPE = {
-  "New": ["7","11"],
-  "Old": ["8","9","10","12"],
-  "Returning": ["7","8","9","10","11","12"],
+const JHS_GRADE_OPTIONS_BY_TYPE = {
+  "New": ["7"],
+  "Old": ["8","9","10"],
+  "Returning": ["7","8","9","10"],
+};
+
+const SHS_OPTIONS_BY_TYPE = {
+  "New": [{ grade: "11", semester: "1st sem" }],
+  "Old": [
+    { grade: "11", semester: "2nd sem" },
+    { grade: "12", semester: "1st sem" },
+    { grade: "12", semester: "2nd sem" },
+  ],
+  "Returning": [
+    { grade: "11", semester: "1st sem" },
+    { grade: "11", semester: "2nd sem" },
+    { grade: "12", semester: "1st sem" },
+    { grade: "12", semester: "2nd sem" },
+  ],
+};
+
+const DEFAULT_SHS_OPTION_BY_TYPE = {
+  "New": { grade: "11", semester: "1st sem" },
+  "Old": { grade: "12", semester: "1st sem" },
+  "Returning": { grade: "11", semester: "1st sem" },
 };
 
 function getGradeOptionsForSelection(studentType, schoolLevel) {
   if (!studentType) return [];
-  const level = schoolLevel === "SHS" ? "SHS" : "JHS";
+  if (schoolLevel === "SHS") return SHS_OPTIONS_BY_TYPE[studentType] ?? [];
+  return (JHS_GRADE_OPTIONS_BY_TYPE[studentType] ?? []).map((grade) => ({ grade }));
+}
 
-  if (studentType === "New") return level === "JHS" ? ["7"] : ["11"];
-  if (studentType === "Old") return level === "JHS" ? ["8","9","10"] : ["12"];
-  if (studentType === "Returning") return level === "JHS" ? ["7","8","9","10"] : ["11","12"];
-  return GRADE_OPTIONS_BY_TYPE[studentType] ?? [];
+function periodMatchesGrade(period, gradeLevel, semester) {
+  const grade = Number(gradeLevel);
+  if (period.coverage === "all_grade_levels") {
+    return grade >= 7 && grade <= 10
+      ? !semester
+      : (grade === 11 || grade === 12) && semester === "1st sem";
+  }
+  return period.coverage === "shs_second_semester"
+    && (grade === 11 || grade === 12)
+    && semester === "2nd sem";
+}
+
+function formatSchoolYear(schoolYear) {
+  return String(schoolYear || "Unavailable").replace(/^(\d{4})-(\d{4})$/, "$1–$2");
 }
 
 // Backend (submit_enrollment.php) only hard-requires PSA Birth Certificate
@@ -62,7 +103,8 @@ function requiresSupportingDocuments(studentType, gradeLevel) {
 const SUFFIXES = ["", "Jr.", "Sr.", "II", "III", "IV"];
 const NATIONALITIES = ["Filipino", "Other"];
 const isValidOptionalPhone = (value) =>
-  value === "" || /^(?:09\d{9}|\+639\d{9})$/.test(value);
+  value === "" || Boolean(normalizePhilippineMobileNumber(value));
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
 
 function calculateAge(dateOfBirth) {
   const [year, month, day] = String(dateOfBirth).split("-").map(Number);
@@ -144,7 +186,7 @@ const emptyForm = {
   suffix:           "",
   lrn:              "",
   contact_no:       "",
-  gmail:            "",
+  email:            "",
   date_of_birth:    "",
   age:              "",
   sex:              "",
@@ -159,13 +201,15 @@ const emptyForm = {
   mother_contact_number: "",
   guardian_name:    "",
   guardian_contact_number: "",
+  ...EMPTY_LEARNER_DISCLOSURES,
   // Enrollment - Step 4-7
   student_type:     "New",
   grade_level:      "7",
+  semester:         "",
   strand_id:        "",
 };
 
-export default function StudentRegister({ onGoLogin }) {
+export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [regForm, setRegForm] = useState(emptyForm);
   const [regErrors, setRegErrors] = useState({});
@@ -175,6 +219,10 @@ export default function StudentRegister({ onGoLogin }) {
 
   // Enrollment state
   const [strands, setStrands] = useState([]);
+  const [activePeriods, setActivePeriods] = useState([]);
+  const [periodsLoading, setPeriodsLoading] = useState(true);
+  const [periodsError, setPeriodsError] = useState("");
+  const [periodsReload, setPeriodsReload] = useState(0);
   const [frontFile, setFrontFile] = useState(null);
   const [frontName, setFrontName] = useState("");
   const [backFile, setBackFile] = useState(null);
@@ -198,11 +246,9 @@ export default function StudentRegister({ onGoLogin }) {
   const [assignedSection, setAssignedSection] = useState(null);
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState(null);
-  const [submitResult, setSubmitResult] = useState(null);
-  const [enrollmentStatus, setEnrollmentStatus] = useState(null);
-  const [statusCheckError, setStatusCheckError] = useState(null);
 
   const frontInputRef = useRef(null);
+  const submissionInProgressRef = useRef(false);
   const backInputRef = useRef(null);
   const reportCardDataRef = useRef(null);
   const reportCardFrontDataRef = useRef(null);
@@ -221,8 +267,42 @@ export default function StudentRegister({ onGoLogin }) {
   const isSHS = SHS_GRADES.includes(regForm.grade_level);
   const requiresGrade7Docs = requiresGrade7Documents(regForm.student_type, regForm.grade_level);
   const needsRequirements = requiresSupportingDocuments(regForm.student_type, regForm.grade_level);
+  const matchingPeriods = activePeriods.filter((period) =>
+    periodMatchesGrade(period, regForm.grade_level, regForm.semester),
+  );
+  const selectedEnrollmentPeriod = matchingPeriods.length === 1 ? matchingPeriods[0] : null;
 
   useEffect(() => { fetchStrands(); }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function fetchActivePeriods() {
+      setPeriodsLoading(true);
+      setPeriodsError("");
+      try {
+        const response = await fetch(`${API_BASE}/get_active_enrollment_periods.php`, {
+          credentials: "include",
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Active enrollment periods could not be loaded.");
+        }
+        if (active) {
+          setActivePeriods(Array.isArray(data.periods) ? data.periods : []);
+          setEnrollErrors((previous) => ({ ...previous, period: undefined }));
+        }
+      } catch (error) {
+        if (active) {
+          setActivePeriods([]);
+          setPeriodsError(error.message || "Active enrollment periods could not be loaded.");
+        }
+      } finally {
+        if (active) setPeriodsLoading(false);
+      }
+    }
+    fetchActivePeriods();
+    return () => { active = false; };
+  }, [periodsReload]);
 
   async function fetchStrands() {
     try {
@@ -245,17 +325,32 @@ export default function StudentRegister({ onGoLogin }) {
     setRegErrors((prev) => ({ ...prev, [name]: undefined }));
   }
 
+  function handleLearnerDisclosureChange(name, value) {
+    setRegForm((prev) => ({ ...prev, [name]: value }));
+    setRegErrors((prev) => ({
+      ...prev,
+      [name]: undefined,
+      ...(name === "is_pwd" ? { pwd_specification: undefined } : {}),
+      ...(name === "is_4ps_beneficiary" ? { four_ps_household_id: undefined } : {}),
+    }));
+  }
+
   function validateRegistrationStep(step) {
     const errs = {};
     if (step === 2) {
       if (!regForm.first_name.trim()) errs.first_name = "Required.";
       if (!regForm.last_name.trim()) errs.last_name = "Required.";
       if (!/^\d{12}$/.test(regForm.lrn)) errs.lrn = "LRN must be 12 digits.";
-      if (!/^09\d{9}$/.test(regForm.contact_no)) errs.contact_no = "Enter a valid PH mobile number (09XXXXXXXXX).";
-      if (!/^[^\s@]+@gmail\.com$/.test(regForm.gmail)) errs.gmail = "Enter a valid Gmail address.";
+      if (!normalizePhilippineMobileNumber(regForm.contact_no)) {
+        errs.contact_no = "Enter a valid PH mobile number (09XXXXXXXXX or +639XXXXXXXXX).";
+      }
+      if (regForm.email.trim() && !isValidEmail(regForm.email.trim())) {
+        errs.email = "Enter a valid Gmail address or leave this field blank.";
+      }
       if (!regForm.date_of_birth) errs.date_of_birth = "Required.";
       if (!regForm.age) errs.age = "Required.";
       if (!regForm.sex) errs.sex = "Required.";
+      Object.assign(errs, validateLearnerDisclosures(regForm));
     }
     if (step === 3) {
       if (!regForm.province.trim()) errs.province = "Required.";
@@ -295,17 +390,20 @@ export default function StudentRegister({ onGoLogin }) {
     return Object.keys(errs).length === 0;
   }
 
-  function handleStudentTypeSelect(type, schoolLevel, gradeOverride) {
+  function handleStudentTypeSelect(type, schoolLevel, gradeOverride, semesterOverride) {
     const level = schoolLevel ?? "JHS";
     let nextGrade = gradeOverride ?? "";
+    let nextSemester = semesterOverride ?? "";
 
     if (!nextGrade) {
-      if (type === "New") {
-        nextGrade = level === "JHS" ? "7" : "11";
+      if (level === "SHS") {
+        const defaultOption = DEFAULT_SHS_OPTION_BY_TYPE[type];
+        nextGrade = defaultOption?.grade ?? "";
+        nextSemester = defaultOption?.semester ?? "";
+      } else if (type === "New" || type === "Returning") {
+        nextGrade = "7";
       } else if (type === "Old") {
-        nextGrade = level === "JHS" ? "8" : "12";
-      } else if (type === "Returning") {
-        nextGrade = level === "JHS" ? "7" : "11";
+        nextGrade = "8";
       }
     }
 
@@ -313,9 +411,16 @@ export default function StudentRegister({ onGoLogin }) {
       ...prev,
       student_type: type,
       grade_level: nextGrade,
+      semester: nextSemester,
       strand_id: level === "SHS" ? prev.strand_id : "",
     }));
-    setEnrollErrors((prev) => ({ ...prev, student_type: undefined, grade_level: undefined, strand_id: undefined }));
+    setEnrollErrors((prev) => ({
+      ...prev,
+      student_type: undefined,
+      grade_level: undefined,
+      strand_id: undefined,
+      period: undefined,
+    }));
   }
 
   function handleNext() {
@@ -332,6 +437,18 @@ export default function StudentRegister({ onGoLogin }) {
       }
       if (SHS_GRADES.includes(regForm.grade_level) && !regForm.strand_id) {
         setEnrollErrors((prev) => ({ ...prev, strand_id: "Please choose a strand for senior high." }));
+        return;
+      }
+      if (periodsLoading || periodsError || matchingPeriods.length !== 1) {
+        setEnrollErrors((prev) => ({
+          ...prev,
+          period: periodsLoading
+            ? "Checking the active enrollment period. Please wait."
+            : periodsError
+            || (matchingPeriods.length > 1
+              ? "More than one active period matches this enrollment. Please contact the school."
+              : "No active enrollment period is available for this grade and semester."),
+        }));
         return;
       }
       setCurrentStep(2);
@@ -692,13 +809,11 @@ export default function StudentRegister({ onGoLogin }) {
       const res = await fetch(`${API_BASE}/check_enrollment_status.php?student_id=${studentId}`, { credentials: "include" });
       const data = await res.json();
       if (data.success && data.has_enrollment) {
-        setEnrollmentStatus(data.enrollment_status);
         return data.enrollment_status;
       }
-      setEnrollmentStatus(null);
       return null;
     } catch (err) {
-      setStatusCheckError(err.message ?? "Could not check enrollment status.");
+      console.error("Could not check current enrollment status.", err);
       return null;
     }
   }
@@ -706,7 +821,6 @@ export default function StudentRegister({ onGoLogin }) {
   async function handleGoToReview() {
     setAssigning(true);
     setAssignError(null);
-    setStatusCheckError(null);
     const currentStatus = await checkEnrollmentStatus();
     if (currentStatus === "Approved") {
       setAssigning(false);
@@ -741,17 +855,36 @@ export default function StudentRegister({ onGoLogin }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    
-    // First register the student
+    if (submissionInProgressRef.current) return;
+
+    const normalizedPhone = normalizePhilippineMobileNumber(regForm.contact_no);
+    const email = regForm.email.trim();
+    if (!normalizedPhone) {
+      setRegErrors((prev) => ({ ...prev, contact_no: "Enter a valid PH mobile number (09XXXXXXXXX or +639XXXXXXXXX)." }));
+      setCurrentStep(3);
+      return;
+    }
+    if (email && !isValidEmail(email)) {
+      setRegErrors((prev) => ({ ...prev, email: "Enter a valid Gmail address or leave this field blank." }));
+      setCurrentStep(3);
+      return;
+    }
+
+    submissionInProgressRef.current = true;
     setSubmitting(true);
     setServerMsg(null);
     try {
       const regBody = new FormData();
       Object.entries(regForm).forEach(([k, v]) => {
-        if (!["student_type", "grade_level", "strand_id"].includes(k)) {
+        if (![
+          "student_type", "grade_level", "semester", "strand_id", "contact_no", "email",
+          "is_pwd", "pwd_specification", "is_4ps_beneficiary", "four_ps_household_id",
+        ].includes(k)) {
           regBody.append(k, v);
         }
       });
+      regBody.append("cellphone_no", normalizedPhone);
+      if (email) regBody.append("email", email);
       // Auto-set password as LRN
       regBody.append("password", regForm.lrn);
       
@@ -759,62 +892,123 @@ export default function StudentRegister({ onGoLogin }) {
         method: "POST", credentials: "include", body: regBody,
       });
       const regData = await regRes.json();
-      
-      if (!regData.success) {
+
+      let registeredStudentId = "";
+      if (regRes.ok && regData.success) {
+        registeredStudentId = String(regData.student_id ?? "");
+      } else if (regRes.status !== 409) {
         setServerMsg({ type: "error", text: regData.message ?? "Registration failed." });
-        setSubmitting(false);
         return;
       }
 
-      // Persist the newly created student ID before submitting the enrollment.
-      let regStudentId = String(regData.student_id ?? regData.lrn ?? localStorage.getItem("student_id") ?? "");
+      // Registration does not create a PHP session, so authenticate before
+      // submitting enrollment. A 409 may mean an earlier attempt created the
+      // account but failed before the enrollment was saved.
+      const loginRes = await fetch(`${API_BASE}/student_login.php`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          identifier: normalizedPhone,
+          password: regForm.lrn,
+        }).toString(),
+      });
+      const loginData = await loginRes.json();
 
-      if (!regStudentId) {
-        try {
-          const loginRes = await fetch(`${API_BASE}/student_login.php`, {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-              gmail: regForm.gmail,
-              password: regForm.lrn,
-            }).toString(),
-          });
-          const loginData = await loginRes.json();
-          regStudentId = String(loginData?.student?.student_id ?? loginData?.student?.lrn ?? loginData?.student_id ?? loginData?.lrn ?? "");
-        } catch {
-          // ignore and fail below
-        }
-      }
-
-      if (!regStudentId) {
-        setServerMsg({ type: "error", text: "Registration succeeded but the student ID was not returned. Please try again." });
-        setSubmitting(false);
+      if (!loginRes.ok || !loginData.success || !loginData.student) {
+        setServerMsg({
+          type: "error",
+          text: regRes.status === 409
+            ? "This student account already exists. Sign in with its current password to continue enrollment."
+            : "Your account was created, but automatic sign-in failed. Sign in before continuing; do not register again.",
+        });
         return;
       }
-      localStorage.setItem("student_id", String(regStudentId));
 
-      // Then submit enrollment
+      const authenticatedStudent = loginData.student;
+      const studentId = String(authenticatedStudent.student_id ?? "");
+      const submittedLrn = String(regForm.lrn).replace(/\D/g, "");
+      const authenticatedLrn = String(authenticatedStudent.lrn ?? "").replace(/\D/g, "");
+      if (
+        !studentId ||
+        (registeredStudentId && studentId !== registeredStudentId) ||
+        !authenticatedLrn ||
+        authenticatedLrn !== submittedLrn
+      ) {
+        setServerMsg({
+          type: "error",
+          text: "The signed-in account does not match this enrollment. Please verify the LRN and phone number.",
+        });
+        return;
+      }
+
+      if (loginData.must_change_password) {
+        setServerMsg({
+          type: "error",
+          text: "Change the account password before continuing enrollment. Sign in to complete the password change.",
+        });
+        return;
+      }
+
+      const statusRes = await fetch(
+        `${API_BASE}/check_enrollment_status.php?student_id=${encodeURIComponent(studentId)}`,
+        { credentials: "include" },
+      );
+      const statusData = await statusRes.json();
+      if (!statusRes.ok || !statusData.success) {
+        throw new Error(statusData.message ?? "Could not verify the current enrollment status.");
+      }
+
+      if (
+        statusData.has_enrollment &&
+        ["Pending", "Approved"].includes(statusData.enrollment_status)
+      ) {
+        setServerMsg({ type: "success", text: "Enrollment found. Signing you in…" });
+        onLoginSuccess?.(authenticatedStudent);
+        return;
+      }
+
+      if (!selectedEnrollmentPeriod) {
+        throw new Error("No single active enrollment period matches this grade and semester. Please contact the school.");
+      }
+      const periodsRes = await fetch(`${API_BASE}/get_enrollment_periods.php`, {
+        credentials: "include",
+      });
+      const periodsData = await periodsRes.json();
+      if (!periodsRes.ok || !periodsData.success) {
+        throw new Error(periodsData.message ?? "Could not verify the active enrollment period.");
+      }
+      const verifiedPeriod = (Array.isArray(periodsData.periods) ? periodsData.periods : []).find((period) =>
+        Number(period.enrollment_period_id) === selectedEnrollmentPeriod.enrollment_period_id
+        && period.status === "Open"
+        && period.eligible === true
+        && Number(period.eligible_grade_level) === Number(regForm.grade_level)
+        && String(period.eligible_semester ?? "") === String(regForm.semester ?? ""),
+      );
+      if (!verifiedPeriod) {
+        throw new Error("The displayed enrollment period is no longer available for this application. Refresh the page and review the current period.");
+      }
+
       if (!assignedSection) {
         setServerMsg({ type: "error", text: "Section not assigned." });
-        setSubmitting(false);
         return;
       }
-
-      const studentId = regStudentId;
 
       const enrollPayload = {
         student_id: studentId,
+        enrollment_period_id: Number(verifiedPeriod.enrollment_period_id),
         student_type: regForm.student_type,
         grade_level: regForm.grade_level,
+        semester: isSHS ? regForm.semester : null,
         strand_id: regForm.strand_id || null,
         average_grade: Number(ocrAverage),
         section_id: assignedSection.section_id,
         section_name: assignedSection.section_name,
-        report_card_front: backName,
-        report_card_back: frontName,
+        report_card_front: frontName,
+        report_card_back: backName,
         birth_certificate: psaName || null,
         good_moral: goodMoralName || null,
+        ...enrollmentDisclosurePayload(regForm),
         ocr_verification: {
           birth_certificate: birthVerification,
           good_moral: goodMoralVerification,
@@ -828,18 +1022,26 @@ export default function StudentRegister({ onGoLogin }) {
         body: JSON.stringify(enrollPayload),
       });
       const enrollData = await enrollRes.json();
-      setSubmitResult({ success: enrollData.success, message: enrollData.message });
-      
-      if (enrollData.success) {
-        localStorage.setItem("student_id", String(studentId));
-        localStorage.setItem("student_name", `${regForm.first_name} ${regForm.last_name}`.trim());
-        localStorage.setItem("student_gmail", regForm.gmail);
-        setServerMsg({ type: "success", text: "Enrollment submitted successfully. Please sign in to continue." });
-        setTimeout(() => onGoLogin?.(), 900);
+      if (!enrollRes.ok || !enrollData.success) {
+        setServerMsg({
+          type: "error",
+          text: enrollData.message ?? "Enrollment could not be submitted. You can retry without registering again.",
+        });
+        return;
       }
-    } catch {
-      setServerMsg({ type: "error", text: "Could not reach the server." });
+      if (Number(enrollData.enrollment_period_id) !== Number(verifiedPeriod.enrollment_period_id)) {
+        throw new Error("The submitted enrollment period could not be verified. Please contact the school before submitting again.");
+      }
+
+      setServerMsg({ type: "success", text: "Enrollment submitted successfully. Signing you in…" });
+      onLoginSuccess?.(authenticatedStudent);
+    } catch (error) {
+      setServerMsg({
+        type: "error",
+        text: error.message ?? "Could not reach the server. Please retry; your account may already have been created.",
+      });
     } finally {
+      submissionInProgressRef.current = false;
       setSubmitting(false);
     }
   }
@@ -884,6 +1086,44 @@ export default function StudentRegister({ onGoLogin }) {
             Start your enrollment
           </h2>
         </div>
+
+        <section
+          aria-live="polite"
+          aria-label="Active enrollment period"
+          className="mb-6 rounded-2xl border border-[#235347]/20 bg-[#0B2B26] px-5 py-4 text-white shadow-[4px_5px_0_rgba(45,55,40,0.2)]"
+        >
+          <p className="text-xs font-medium uppercase tracking-[0.15em] text-[#DAF1DE]/75">
+            Active Enrollment Period
+          </p>
+          <h2 className="mt-1 text-2xl font-semibold" style={{ fontFamily: "'Fraunces', serif" }}>
+            School Year: {periodsLoading
+              ? "Loading…"
+              : formatSchoolYear(selectedEnrollmentPeriod?.school_year)}
+          </h2>
+          <p className="mt-1 text-sm text-[#DAF1DE]">
+            {selectedEnrollmentPeriod
+              ? `${selectedEnrollmentPeriod.coverage === "shs_second_semester"
+                ? "Senior High School · 2nd Semester"
+                : "All Grade Levels"} · ${selectedEnrollmentPeriod.semester || "Semester unavailable"}`
+              : periodsLoading
+                ? "Checking the current period for your selected grade…"
+                : matchingPeriods.length > 1
+                  ? "Multiple active periods match your selection. Contact the school for assistance."
+                  : periodsError
+                    ? "The active enrollment period could not be loaded."
+                    : `No active period is available for Grade ${regForm.grade_level}${regForm.semester ? ` · ${regForm.semester}` : ""}.`}
+          </p>
+          {periodsError && (
+            <button
+              type="button"
+              onClick={() => setPeriodsReload((current) => current + 1)}
+              className="mt-2 text-sm font-medium text-white underline underline-offset-2"
+            >
+              Retry
+            </button>
+          )}
+          {enrollErrors.period && <p role="alert" className="mt-2 text-sm text-[#FFD7CC]">{enrollErrors.period}</p>}
+        </section>
 
         {/* Step indicators */}
         <div className="mb-6 sm:mb-8">
@@ -958,6 +1198,7 @@ export default function StudentRegister({ onGoLogin }) {
                 gradeError={enrollErrors.grade_level}
                 strandError={enrollErrors.strand_id}
                 gradeValue={regForm.grade_level}
+                semesterValue={regForm.semester}
                 strandValue={regForm.strand_id}
                 strands={strands}
                 setEnrollInfo={setRegForm}
@@ -1008,7 +1249,14 @@ export default function StudentRegister({ onGoLogin }) {
                 )}
               </div>
             )}
-            {currentStep === 3 && <StepPersonal form={regForm} errors={regErrors} onChange={handleRegChange} />}
+            {currentStep === 3 && (
+              <StepPersonal
+                form={regForm}
+                errors={regErrors}
+                onChange={handleRegChange}
+                onDisclosureChange={handleLearnerDisclosureChange}
+              />
+            )}
             {currentStep === 4 && <StepAddress form={regForm} errors={regErrors} onChange={handleRegChange} />}
             {currentStep === 5 && <StepGuardian form={regForm} errors={regErrors} onChange={handleRegChange} />}
 
@@ -1023,6 +1271,7 @@ export default function StudentRegister({ onGoLogin }) {
                 goodMoralName={goodMoralName}
                 birthVerification={birthVerification}
                 goodMoralVerification={goodMoralVerification}
+                enrollmentPeriod={selectedEnrollmentPeriod}
                 assignedSection={assignedSection}
                 assigning={assigning}
                 needsRequirements={needsRequirements}
@@ -1038,7 +1287,12 @@ export default function StudentRegister({ onGoLogin }) {
                 </button>
               )}
               {currentStep < totalSteps ? (
-                <button type="button" onClick={handleNext} className="flex-1 rounded-full bg-[#a8bd00] text-[#17350f] text-sm font-semibold py-2.5 shadow-[3px_4px_0_rgba(45,55,40,0.35)] transition hover:-translate-y-0.5 hover:bg-[#b8cd12]">
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={currentStep === 1 && periodsLoading}
+                  className="flex-1 rounded-full bg-[#a8bd00] text-[#17350f] text-sm font-semibold py-2.5 shadow-[3px_4px_0_rgba(45,55,40,0.35)] transition hover:-translate-y-0.5 hover:bg-[#b8cd12] disabled:cursor-wait disabled:opacity-60"
+                >
                   {currentStep === 1 ? "Continue" : "Next →"}
                 </button>
               ) : assignError ? (
@@ -1071,11 +1325,12 @@ export default function StudentRegister({ onGoLogin }) {
         </p>
       </div>
       </motion.main>
+      <Hirumi role="student" publicAccess enableGreeting />
     </div>
   );
 }
 
-function StudentTypeChoice({ selected, currentLevel, onSelect, error, gradeValue, strandValue, strands, setEnrollInfo, setErrors, gradeError, strandError }) {
+function StudentTypeChoice({ selected, currentLevel, onSelect, error, gradeValue, semesterValue, strandValue, strands, setEnrollInfo, setErrors, gradeError, strandError }) {
   const schoolLevel = currentLevel ?? "JHS";
   const gradeOptions = getGradeOptionsForSelection(selected, schoolLevel);
   const isSHS = schoolLevel === "SHS";
@@ -1143,21 +1398,21 @@ function StudentTypeChoice({ selected, currentLevel, onSelect, error, gradeValue
         <div>
           <label className="block text-sm font-medium text-[#0B2B26] mb-2">Grade Level *</label>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {gradeOptions.map((g) => (
+            {gradeOptions.map((option) => (
               <button
-                key={g}
+                key={`${option.grade}-${option.semester ?? ""}`}
                 type="button"
                 onClick={() => {
-                  onSelect(selected, schoolLevel, g);
+                  onSelect(selected, schoolLevel, option.grade, option.semester);
                   setErrors((p) => ({ ...p, grade_level: undefined }));
                 }}
                 className={`rounded-lg border-2 py-2.5 text-sm font-semibold shadow-[2px_3px_0_rgba(45,55,40,0.3)] transition ${
-                  gradeValue === g
+                  gradeValue === option.grade && (semesterValue ?? "") === (option.semester ?? "")
                     ? "border-white bg-[#155000] text-white ring-2 ring-[#a8c437]"
                     : "border-[#155000] bg-[#155000] text-white hover:-translate-y-0.5"
                 }`}
               >
-                G{g}
+                {option.semester ? `${option.grade} ${option.semester}` : `G${option.grade}`}
               </button>
             ))}
           </div>
@@ -1199,7 +1454,7 @@ function StudentTypeChoice({ selected, currentLevel, onSelect, error, gradeValue
 }
 
 // Registration Step Components
-function StepPersonal({ form, errors, onChange }) {
+function StepPersonal({ form, errors, onChange, onDisclosureChange }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1215,8 +1470,8 @@ function StepPersonal({ form, errors, onChange }) {
       </div>
       <Field label="LRN (Learner Reference Number) *" name="lrn" value={form.lrn} error={errors.lrn} onChange={onChange} placeholder="12-digit LRN" maxLength={12} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Gmail Address *" name="gmail" type="email" value={form.gmail} error={errors.gmail} onChange={onChange} placeholder="juan@gmail.com" />
-        <Field label="Contact Number *" name="contact_no" value={form.contact_no} error={errors.contact_no} onChange={onChange} placeholder="09XXXXXXXXX" maxLength={11} />
+        <Field label="Gmail Address (Optional)" name="email" type="email" value={form.email} error={errors.email} onChange={onChange} placeholder="juan@gmail.com" />
+        <Field label="Phone Number *" name="contact_no" type="tel" value={form.contact_no} error={errors.contact_no} onChange={onChange} placeholder="09XXXXXXXXX or +639XXXXXXXXX" maxLength={17} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -1243,6 +1498,11 @@ function StepPersonal({ form, errors, onChange }) {
           </select>
         </div>
       </div>
+      <LearnerDisclosureFields
+        values={form}
+        errors={errors}
+        onChange={onDisclosureChange}
+      />
     </div>
   );
 }
@@ -1289,20 +1549,20 @@ function EnrollmentStepInfo({ enrollInfo, setEnrollInfo, strands, errors, setErr
           </div>
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {gradeOptions.map((g) => (
+            {gradeOptions.map((option) => (
               <button
-                key={g} type="button"
+                key={`${option.grade}-${option.semester ?? ""}`} type="button"
                 onClick={() => {
-                  setEnrollInfo((p) => ({ ...p, grade_level: g, strand_id: "" }));
+                  setEnrollInfo((p) => ({ ...p, grade_level: option.grade, semester: option.semester ?? "", strand_id: "" }));
                   setErrors((p) => ({ ...p, grade_level: undefined }));
                 }}
                 className={`rounded-lg border py-2.5 text-sm font-medium transition-colors ${
-                  enrollInfo.grade_level === g
+                  enrollInfo.grade_level === option.grade && (enrollInfo.semester ?? "") === (option.semester ?? "")
                     ? "bg-[#0B2B26] text-white border-[#0B2B26]"
                     : "border-[#235347]/25 text-[#0B2B26]/70 hover:border-[#0B2B26]"
                 }`}
               >
-                G{g}
+                {option.semester ? `${option.grade} ${option.semester}` : `G${option.grade}`}
               </button>
             ))}
           </div>
@@ -1476,7 +1736,7 @@ function EnrollmentStepRequirements({ psaFile, psaName, psaOcrStatus, psaOcrMsg,
   );
 }
 
-function EnrollmentStepReview({ enrollInfo, strands, ocrAverage, frontName, backName, psaName, goodMoralName, birthVerification, goodMoralVerification, assignedSection, assigning, needsRequirements, requiresGrade7Docs }) {
+function EnrollmentStepReview({ enrollInfo, strands, ocrAverage, frontName, backName, psaName, goodMoralName, birthVerification, goodMoralVerification, enrollmentPeriod, assignedSection, assigning, needsRequirements, requiresGrade7Docs }) {
   const isSHS = SHS_GRADES.includes(enrollInfo.grade_level);
   return (
     <div className="space-y-4">
@@ -1497,7 +1757,16 @@ function EnrollmentStepReview({ enrollInfo, strands, ocrAverage, frontName, back
           Application checklist
         </h3>
         <SummaryRow label="Student Type" value={enrollInfo.student_type} />
-        <SummaryRow label="Grade Level" value={`Grade ${enrollInfo.grade_level}`} />
+        <SummaryRow label="School Year" value={formatSchoolYear(enrollmentPeriod?.school_year)} />
+        <SummaryRow
+          label="Enrollment Coverage"
+          value={enrollmentPeriod?.coverage === "shs_second_semester"
+            ? "Senior High School · 2nd Semester"
+            : enrollmentPeriod?.coverage === "all_grade_levels"
+              ? "All Grade Levels"
+              : "Unavailable"}
+        />
+        <SummaryRow label="Grade Level" value={`Grade ${enrollInfo.grade_level}${enrollInfo.semester ? ` — ${enrollInfo.semester}` : ""}`} />
         {isSHS && <SummaryRow label="Strand" value={strands.find((s) => String(s.strand_id) === enrollInfo.strand_id)?.strand_name ?? "—"} />}
         <SummaryRow label="General Average" value={ocrAverage ? `${ocrAverage} ✓` : "Not entered"} />
         <SummaryRow label="Report Card — Front" value={frontName ? "Uploaded ✓" : "Not uploaded"} />

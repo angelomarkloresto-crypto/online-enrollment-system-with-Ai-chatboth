@@ -14,6 +14,9 @@ import AddAndUpdateSubject   from "./pages/admin/AddAndUpdateSubject";
 import AdminProfile          from "./pages/admin/AdminProfile";
 import AdminLayout           from "./pages/layouts/AdminLayouts";
 import Hirumi                from "./pages/AI assistant/Hirumi";
+import StudentManagement from "./pages/admin/StudentManagement";
+import EnrollmentPeriodManagement from "./pages/admin/EnrollmentPeriodManagement";
+import StudentRecords from "./pages/admin/StudentRecords";
 
 
 // import AdminLayout from "./pages/layouts/AdminLayouts";
@@ -122,6 +125,37 @@ const NAV = [
     ),
   },
   {
+    label: "Student Management",
+    path: "/students",
+    icon: (color) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none" aria-hidden="true">
+        <circle cx="7" cy="6" r="3" stroke={color} strokeWidth="1.5" />
+        <path d="M1.5 17v-1a5.5 5.5 0 0 1 11 0v1h-11Z" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M13 4a3 3 0 0 1 0 5.8M15 12.2a5 5 0 0 1 3.5 4.8" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Enrollment Period Management",
+    path: "/enrollment-periods",
+    icon: (color) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none" aria-hidden="true">
+        <rect x="2.5" y="4" width="15" height="13" rx="1.8" stroke={color} strokeWidth="1.5" />
+        <path d="M6 2.5v3M14 2.5v3M3 8h14M6 11h2M10 11h2M6 14h2" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Student Records",
+    path: "/student-records",
+    icon: (color) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none" aria-hidden="true">
+        <path d="M4 3.5h8l4 4v9A1.5 1.5 0 0114.5 18h-10A1.5 1.5 0 013 16.5v-11A2 2 0 014 3.5Z" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M12 3.5V8h4M6.5 11h7M6.5 14h7" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     label: "Profile",
     path: "/profile",
     icon: (color) => (
@@ -150,14 +184,14 @@ function SidebarLayout({ children }) {
   }
 
   const currentLabel = NAV.find(n => location.pathname.startsWith(n.path))?.label ?? "Admin Panel";
-  const sidebarW = collapsed ? "w-16" : "w-60 lg:w-64";
+  const sidebarW = collapsed ? "w-16" : "w-60 xl:w-64";
 
   return (
-    <div className="min-h-screen flex bg-[#FAFAF5]">
+    <div className="flex min-h-screen min-w-0 bg-[#FAFAF5]">
 
       {/* ── Desktop sidebar ── */}
       <aside
-        className={`hidden md:flex flex-col bg-[#1B5E2C] text-[#FAFAF5] shrink-0 fixed top-0 left-0 h-full z-30 transition-all duration-200 ${sidebarW}`}
+        className={`fixed left-0 top-0 z-30 hidden h-dvh shrink-0 flex-col bg-[#1B5E2C] text-[#FAFAF5] transition-all duration-200 lg:flex ${sidebarW}`}
       >
         {/* Logo row */}
         <div className={`flex items-center gap-3 px-3 py-5 border-b border-white/10 ${collapsed ? "justify-center" : ""}`}>
@@ -177,7 +211,7 @@ function SidebarLayout({ children }) {
         {/* Collapse toggle button */}
         <button
           onClick={() => setCollapsed(c => !c)}
-          className={`mx-auto mt-3 mb-1 flex items-center justify-center h-7 w-7 rounded-lg bg-white/10 hover:bg-white/20 transition-colors`}
+          className="mx-auto mt-3 mb-1 flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 transition-colors hover:bg-white/20"
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
@@ -190,7 +224,7 @@ function SidebarLayout({ children }) {
         </button>
 
         {/* Nav */}
-        <nav className="flex-1 px-2 py-2 space-y-1 overflow-y-auto">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-2">
           {NAV.map((item) => {
             const active = location.pathname.startsWith(item.path);
             const color  = active ? "#1B5E2C" : "#CFE3CE";
@@ -211,7 +245,7 @@ function SidebarLayout({ children }) {
         </nav>
 
         {/* Logout */}
-        <div className="px-2 py-4 border-t border-white/10">
+        <div className="shrink-0 border-t border-white/10 px-2 py-4">
           <button
             onClick={handleLogout}
             disabled={loggingOut}
@@ -226,9 +260,9 @@ function SidebarLayout({ children }) {
 
       {/* ── Mobile drawer ── */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setDrawerOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-[#1B5E2C] text-[#FAFAF5] flex flex-col z-50">
+          <aside className="absolute inset-y-0 left-0 z-50 flex h-dvh w-64 max-w-[85vw] flex-col bg-[#1B5E2C] text-[#FAFAF5]">
             <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
               <img
                 src="/assets/gogon-hs-logo.jpg"
@@ -241,7 +275,7 @@ function SidebarLayout({ children }) {
               </div>
             </div>
 
-            <nav className="flex-1 px-2 py-4 space-y-1">
+            <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-4">
               {NAV.map((item) => {
                 const active = location.pathname.startsWith(item.path);
                 return (
@@ -259,7 +293,7 @@ function SidebarLayout({ children }) {
               })}
             </nav>
 
-            <div className="px-2 py-4 border-t border-white/10">
+            <div className="shrink-0 border-t border-white/10 px-2 py-4">
               <p className="px-3 text-xs text-[#86A18A] mb-2 truncate">ID: {adminId}</p>
               <button
                 onClick={handleLogout}
@@ -275,13 +309,13 @@ function SidebarLayout({ children }) {
       )}
 
       {/* ── Page area ── */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-200 ${collapsed ? "md:ml-16" : "md:ml-60 lg:ml-64"}`}>
+      <div className={`flex min-w-0 flex-1 flex-col transition-all duration-200 ${collapsed ? "lg:ml-16" : "lg:ml-60 xl:ml-64"}`}>
         {/* Top bar */}
         <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-[#D9E8D5] bg-white px-4 sm:px-6 py-3">
           <div className="flex items-center gap-3 min-w-0">
             {/* Mobile hamburger */}
             <button
-              className="md:hidden h-9 w-9 rounded-lg border border-[#D9E8D5] flex items-center justify-center shrink-0"
+              className="lg:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#D9E8D5]"
               onClick={() => setDrawerOpen(true)}
               aria-label="Open menu"
             >
@@ -314,7 +348,7 @@ function SidebarLayout({ children }) {
         <AnimatePresence mode="wait" initial={false}>
           <motion.main
             key={location.pathname}
-            className="flex-1"
+            className="min-w-0 flex-1"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -351,6 +385,10 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><SidebarLayout><AdminDashboard /></SidebarLayout></ProtectedRoute>} />
       <Route path="/staff"     element={<ProtectedRoute><SidebarLayout><StaffManagement /></SidebarLayout></ProtectedRoute>} />
       <Route path="/subjects"  element={<ProtectedRoute><SidebarLayout><AddAndUpdateSubject /></SidebarLayout></ProtectedRoute>} />
+      <Route path="/students" element={<ProtectedRoute><SidebarLayout><StudentManagement /></SidebarLayout></ProtectedRoute>} />
+      <Route path="/students/sections/:sectionId" element={<ProtectedRoute><SidebarLayout><StudentManagement /></SidebarLayout></ProtectedRoute>} />
+      <Route path="/enrollment-periods" element={<ProtectedRoute><SidebarLayout><EnrollmentPeriodManagement /></SidebarLayout></ProtectedRoute>} />
+      <Route path="/student-records" element={<ProtectedRoute><SidebarLayout><StudentRecords /></SidebarLayout></ProtectedRoute>} />
       <Route path="/profile"   element={<ProtectedRoute><SidebarLayout><AdminProfile /></SidebarLayout></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to={isLoggedIn ? "/dashboard" : "/login"} replace />} />

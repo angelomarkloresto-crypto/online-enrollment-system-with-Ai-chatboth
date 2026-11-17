@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 
 const API_BASE_NOTIFICATIONS = "/backend-online-enrollment/student";
@@ -49,11 +49,11 @@ export default function StudentDashboard({ onNavigate }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading]             = useState(true);
   const [loadError, setLoadError]         = useState(null);
-  const [notice, setNotice]               = useState(null); // e.g. "You are already enrolled."
+  const [latestEnrollment, setLatestEnrollment] = useState(null);
+  const [enrollmentLoading, setEnrollmentLoading] = useState(true);
+  const [enrollmentError, setEnrollmentError] = useState(null);
 
-  useEffect(() => { loadNotifications(); }, []);
-
-  async function loadNotifications() {
+  const loadNotifications = useCallback(async () => {
     if (!studentId) return;
     setLoading(true);
     setLoadError(null);
@@ -68,28 +68,44 @@ export default function StudentDashboard({ onNavigate }) {
         : setLoadError("Could not load notifications.");
     } catch { setLoadError("Could not reach the server."); }
     finally  { setLoading(false); }
-  }
+  }, [studentId]);
 
-  // Derive enrollment status from notifications
-  const enrollmentNotif = notifications.find((n) =>
-    ["Enrollment Pending", "Enrollment Approved", "Enrollment Rejected"].includes(n.title)
-  );
-  const isApproved = enrollmentNotif?.title === "Enrollment Approved";
-  const isPending  = enrollmentNotif?.title === "Enrollment Pending";
-  const isRejected = enrollmentNotif?.title === "Enrollment Rejected";
-  const hasEnrolled = isApproved || isPending || isRejected;
+  const loadEnrollment = useCallback(async () => {
+    setEnrollmentLoading(true);
+    setEnrollmentError(null);
+    try {
+      const response = await fetch(
+        `${API_BASE_NOTIFICATIONS}/check_enrollment_status.php`,
+        { credentials: "include" }
+      );
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error("The enrollment status response was invalid.");
+      }
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Enrollment status could not be loaded.");
+      }
+      setLatestEnrollment(data.has_enrollment ? data : null);
+    } catch (error) {
+      setLatestEnrollment(null);
+      setEnrollmentError(error.message || "Could not load enrollment status.");
+    } finally {
+      setEnrollmentLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadNotifications(); }, [loadNotifications]);
+  useEffect(() => { loadEnrollment(); }, [loadEnrollment]);
+
+  const isApproved = latestEnrollment?.enrollment_status === "Approved";
+  const isPending  = latestEnrollment?.enrollment_status === "Pending";
+  const isRejected = latestEnrollment?.enrollment_status === "Rejected";
 
   const timetableReady = notifications.some((n) => n.title === "Timetable Ready");
 
-  // Approved students already have a finalized enrollment — block them from
-  // re-opening the form and surface a notice instead. Rejected students are
-  // explicitly allowed to enroll again (they never got in), and pending
-  // students can still tap through to see their submitted application.
   function handleEnrollClick() {
-    if (isApproved) {
-      setNotice("You are already enrolled.");
-      return;
-    }
     onNavigate?.("enrollment");
   }
 
@@ -125,11 +141,11 @@ export default function StudentDashboard({ onNavigate }) {
           </h2>
           <p className="text-[#DAF1DE] text-sm mt-2 max-w-sm">
             {isApproved
-              ? "Your enrollment is approved. Check your timetable below."
+              ? "Your latest enrollment is approved."
               : isPending
               ? "Your enrollment is under review. We'll notify you once it's processed."
               : isRejected
-              ? "Your enrollment was rejected. Please contact the school office."
+              ? "Your latest application was rejected. Review the details below."
               : "Welcome to the Gogon High School Online Enrollment System."}
           </p>
         </div>
@@ -141,13 +157,17 @@ export default function StudentDashboard({ onNavigate }) {
           : isRejected ? "bg-[#B3492B]/30 border border-[#B3492B]/40"
           : "bg-white/10 border border-white/20"
         }`}>
-          <p className="text-xs text-[#DAF1DE] mb-1">Enrollment Status</p>
+          <p className="text-xs text-[#DAF1DE] mb-1">
+            {enrollmentLoading ? "Enrollment Status" : enrollmentError ? "Enrollment Status" : "Latest Enrollment Status"}
+          </p>
           <p className={`text-sm font-medium ${
             isApproved ? "text-[#8EB69B]"
             : isRejected ? "text-[#F87171]"
             : "text-white"
           }`}>
-            {isApproved ? "✓ Approved"
+            {enrollmentLoading ? "Loading…"
+              : enrollmentError ? "Unavailable"
+              : isApproved ? "✓ Approved"
               : isPending ? "⏳ Pending"
               : isRejected ? "✕ Rejected"
               : "Not enrolled"}
@@ -155,28 +175,35 @@ export default function StudentDashboard({ onNavigate }) {
         </div>
       </motion.div>
 
+      {latestEnrollment && (
+        <EnrollmentSummary
+          enrollment={latestEnrollment}
+          history={Array.isArray(latestEnrollment.enrollment_history)
+            ? latestEnrollment.enrollment_history
+            : []}
+        />
+      )}
+      {enrollmentError && (
+        <p role="alert" className="rounded-xl border border-[#B3492B]/25 bg-[#B3492B]/8 px-4 py-3 text-sm text-[#B3492B]">
+          {enrollmentError}
+        </p>
+      )}
+
       {/* ── Quick actions ── */}
       <section>
         <p className="text-xs uppercase tracking-[0.15em] text-[#0B2B26]/45 mb-3">
           Quick Actions
         </p>
 
-        {notice && (
-          <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-[#8EB69B]/40 bg-[#8EB69B]/10 px-4 py-3 text-sm text-[#163832]">
-            <span>{notice}</span>
-            <button onClick={() => setNotice(null)} className="shrink-0 text-[#163832]/70 hover:text-[#163832]" aria-label="Dismiss">✕</button>
-          </div>
-        )}
-
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
             {
-              label:    isApproved ? "Already Enrolled" : isRejected ? "Enroll Again" : hasEnrolled ? "View Enrollment" : "Enroll Now",
-              sub:      isApproved ? "Your enrollment is finalized" : isRejected ? "Re-submit your enrollment form" : hasEnrolled ? "Track your application" : "Submit your enrollment form",
+              label:    "Check Enrollment Periods",
+              sub:      "See open periods and your eligibility",
               icon:     <EnrollIcon />,
-              color:    isApproved ? "border-[#235347]/15 opacity-60" : "border-[#235347]/15 hover:border-[#0B2B26]",
+              color:    "border-[#235347]/15 hover:border-[#0B2B26]",
               onClick:  handleEnrollClick,
-              disabled: false, // stays clickable even when approved, so the notice can actually show
+              disabled: false,
             },
             {
               label:    "My Timetable",
@@ -223,7 +250,10 @@ export default function StudentDashboard({ onNavigate }) {
             Notifications
           </p>
           <button
-            onClick={loadNotifications}
+            onClick={() => {
+              loadNotifications();
+              loadEnrollment();
+            }}
             className="text-xs text-[#163832] hover:underline"
           >
             Refresh
@@ -318,6 +348,103 @@ export default function StudentDashboard({ onNavigate }) {
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+function formatSchoolYear(value) {
+  if (!value) return "School year unavailable";
+  return String(value).replace(/^(\d{4})-(\d{4})$/, "$1–$2");
+}
+
+function enrollmentCoverage(value) {
+  return value === "shs_second_semester"
+    ? "Senior High School · 2nd Semester"
+    : value === "all_grade_levels"
+      ? "All Grade Levels"
+      : "Coverage unavailable";
+}
+
+function EnrollmentSummary({ enrollment, history }) {
+  const status = enrollment.enrollment_status;
+  const isApproved = status === "Approved";
+  const statusStyle = isApproved
+    ? "bg-[#0B2B26]/8 text-[#0B2B26]"
+    : status === "Rejected"
+      ? "bg-[#B3492B]/10 text-[#B3492B]"
+      : "bg-[#8EB69B]/20 text-[#163832]";
+  const semester = enrollment.semester || enrollment.period_semester;
+
+  return (
+    <section className="rounded-2xl border border-[#235347]/15 bg-white p-4 sm:p-5" aria-labelledby="latest-enrollment-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.15em] text-[#0B2B26]/45">
+            {isApproved ? "Approved Enrollment Details" : "Latest Enrollment Application"}
+          </p>
+          <h3 id="latest-enrollment-title" className="mt-1 text-xl font-semibold text-[#0B2B26]" style={{ fontFamily: "'Fraunces', serif" }}>
+            School Year: {formatSchoolYear(enrollment.school_year)}
+          </h3>
+          <p className="mt-1 text-sm text-[#0B2B26]/60">
+            {enrollmentCoverage(enrollment.coverage)}
+          </p>
+        </div>
+        <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${statusStyle}`}>
+          {status || "Status unavailable"}
+        </span>
+      </div>
+
+      <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <EnrollmentDetail label="Semester" value={semester || "Not recorded"} />
+        <EnrollmentDetail
+          label="Grade Level"
+          value={enrollment.grade_level ? `Grade ${enrollment.grade_level}` : "Not assigned"}
+        />
+        <EnrollmentDetail label="Section" value={enrollment.section_name || "Not assigned"} />
+      </dl>
+
+      {status === "Rejected" && enrollment.rejection_reason && (
+        <p className="mt-3 rounded-lg bg-[#B3492B]/8 px-3 py-2 text-sm text-[#B3492B]">
+          Rejection reason: {enrollment.rejection_reason}
+        </p>
+      )}
+
+      {history.length > 1 && (
+        <details className="mt-4 border-t border-[#235347]/10 pt-3">
+          <summary className="cursor-pointer text-sm font-medium text-[#163832]">
+            Previous enrollment attempts ({history.length - 1})
+          </summary>
+          <ul className="mt-3 space-y-2">
+            {history.slice(1).map((attempt) => (
+              <li
+                key={attempt.enrollment_id}
+                className="flex flex-col gap-1 rounded-lg bg-[#DAF1DE]/30 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span className="font-medium text-[#0B2B26]">
+                  {formatSchoolYear(attempt.school_year)}
+                  {attempt.grade_level ? ` · Grade ${attempt.grade_level}` : ""}
+                  {attempt.section_name ? ` · ${attempt.section_name}` : ""}
+                </span>
+                <span className="text-[#0B2B26]/65">
+                  {attempt.enrollment_status || "Status unavailable"}
+                  {attempt.submitted_at
+                    ? ` · ${new Date(String(attempt.submitted_at).replace(" ", "T")).toLocaleDateString()}`
+                    : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
+  );
+}
+
+function EnrollmentDetail({ label, value }) {
+  return (
+    <div className="min-w-0 rounded-lg bg-[#DAF1DE]/30 px-3 py-2">
+      <dt className="text-xs text-[#0B2B26]/50">{label}</dt>
+      <dd className="mt-0.5 truncate text-sm font-medium text-[#0B2B26]" title={value}>{value}</dd>
+    </div>
   );
 }
 

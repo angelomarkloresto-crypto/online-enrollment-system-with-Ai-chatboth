@@ -14,6 +14,8 @@ import TimetableManagement from "./pages/staff/TimetableManagement";
 import Hirumi from "./pages/AI assistant/Hirumi";
 import SectionQrManager from "./pages/staff/SectionQrManager";
 import DonationManagement from "./pages/staff/DonationManagement";
+import OnSiteEnrollment from "./pages/staff/OnSiteEnrollment";
+import OnSiteDonation from "./pages/staff/OnSiteDonation";
 
 
 
@@ -96,17 +98,6 @@ const NAV = [
     ),
   },
   {
-    label: "Timetable",
-    path:  "/staff/timetable",
-    icon:  (color) => (
-      <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none">
-        <rect x="2" y="3" width="16" height="15" rx="1.5" stroke={color} strokeWidth="1.5" />
-        <path d="M6 2v2M14 2v2M2 8h16" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M6 12h2M10 12h2M6 15h2" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
     label: "Enrollments",
     path:  "/staff/enrollments",
     icon:  (color) => (
@@ -118,7 +109,7 @@ const NAV = [
     ),
   },
   {
-    label: "Student List",
+    label: "Student Management",
     path:  "/staff/student-list",
     icon:  (color) => (
       <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none">
@@ -128,7 +119,7 @@ const NAV = [
     ),
   },
   {
-    label: "Strands & Sections",
+    label: "Class Management",
     path:  "/staff/strands",
     icon:  (color) => (
       <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none">
@@ -159,6 +150,20 @@ const NAV = [
       </svg>
     ),
   },
+  {
+    label: "On-Site",
+    path: "/staff/on-site",
+    children: [
+      { label: "Enrollment Form", path: "/staff/on-site/enrollment" },
+      { label: "Donation", path: "/staff/on-site/donation" },
+    ],
+    icon: (color) => (
+      <svg viewBox="0 0 20 20" className="h-5 w-5 shrink-0" fill="none">
+        <path d="M3 5.5h14v11H3zM6 3.5v4M14 3.5v4M3 9h14" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M7 12h2M11 12h2M7 14.5h2" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ];
 
 /* ── Sidebar layout ───────────────────────────────────────────── */
@@ -177,10 +182,12 @@ function StaffSidebarLayout({ children }) {
     navigate("/staff/login", { replace: true });
   }
 
+  const activeSubItem = NAV.flatMap((item) => item.children ?? [])
+    .find((child) => location.pathname === child.path);
   const currentLabel =
-    NAV.find((n) => location.pathname.startsWith(n.path))?.label ?? "Staff Portal";
+    activeSubItem?.label ?? NAV.find((n) => n.path !== "/staff/on-site" && location.pathname.startsWith(n.path))?.label ?? "Staff Portal";
 
-  const sidebarW = collapsed ? "w-16" : "w-60 lg:w-64";
+  const sidebarW = collapsed ? "w-16" : "w-60 xl:w-64";
 
   /* shared sidebar inner content */
 
@@ -198,23 +205,23 @@ function StaffSidebarLayout({ children }) {
   );
 
   return (
-    <div className="min-h-screen flex bg-[#FAFAF5]">
+    <div className="flex min-h-screen min-w-0 bg-[#FAFAF5]">
 
       {/* Desktop sidebar */}
       <aside
-        className={`hidden md:flex flex-col bg-[#1B5E2C] text-[#FAFAF5] shrink-0 fixed top-0 left-0 h-full z-30 transition-all duration-200 ${sidebarW}`}
+        className={`fixed left-0 top-0 z-30 hidden h-dvh shrink-0 flex-col bg-[#1B5E2C] text-[#FAFAF5] transition-all duration-200 lg:flex ${sidebarW}`}
       >
         {sidebarContent}
       </aside>
 
       {/* Mobile drawer */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div className="fixed inset-0 z-40 lg:hidden">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setDrawerOpen(false)}
           />
-          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-[#1B5E2C] text-[#FAFAF5] flex flex-col z-50">
+          <aside className="absolute inset-y-0 left-0 z-50 flex h-dvh w-64 max-w-[85vw] flex-col bg-[#1B5E2C] text-[#FAFAF5]">
             <StaffSidebarInner
               collapsed={collapsed}
               staff={staff}
@@ -231,8 +238,8 @@ function StaffSidebarLayout({ children }) {
 
       {/* Page area */}
       <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-200 ${
-          collapsed ? "md:ml-16" : "md:ml-60 lg:ml-64"
+        className={`flex min-w-0 flex-1 flex-col transition-all duration-200 ${
+          collapsed ? "lg:ml-16" : "lg:ml-60 xl:ml-64"
         }`}
       >
         {/* Top bar */}
@@ -240,7 +247,7 @@ function StaffSidebarLayout({ children }) {
           <div className="flex items-center gap-3 min-w-0">
             {/* Mobile hamburger */}
             <button
-              className="md:hidden h-9 w-9 rounded-lg border border-[#D9E8D5] flex items-center justify-center shrink-0"
+              className="lg:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#D9E8D5]"
               onClick={() => setDrawerOpen(true)}
               aria-label="Open menu"
             >
@@ -285,7 +292,7 @@ function StaffSidebarLayout({ children }) {
         <AnimatePresence mode="wait" initial={false}>
           <motion.main
             key={location.pathname}
-            className="flex-1"
+            className="min-w-0 flex-1"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -310,6 +317,12 @@ function StaffSidebarInner({
   setCollapsed,
   loggingOut,
 }) {
+  const [onSiteOpen, setOnSiteOpen] = useState(
+    () => location.pathname.startsWith("/staff/on-site"),
+  );
+  const onSiteItem = NAV.find((item) => item.path === "/staff/on-site");
+  const onSiteActive = location.pathname.startsWith("/staff/on-site");
+
   return (
     <>
       {/* Logo */}
@@ -334,7 +347,7 @@ function StaffSidebarInner({
       {/* Collapse toggle — desktop only */}
       <button
         onClick={() => setCollapsed((c) => !c)}
-        className="mx-auto mt-3 mb-1 hidden md:flex items-center justify-center h-7 w-7 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+        className="mx-auto mt-3 mb-1 hidden h-7 w-7 items-center justify-center rounded-lg bg-white/10 transition-colors hover:bg-white/20 lg:flex"
         title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
@@ -357,10 +370,81 @@ function StaffSidebarInner({
       )}
 
       {/* Nav */}
-      <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-3">
         {NAV.map((item) => {
-          const active = location.pathname.startsWith(item.path);
+          const active = item.children
+            ? onSiteActive
+            : location.pathname.startsWith(item.path);
           const color = active ? "#1B5E2C" : "#CFE3CE";
+          if (item.children) {
+            return (
+              <div
+                key={item.path}
+                onMouseEnter={() => {
+                  if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+                    setOnSiteOpen(true);
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (!onSiteActive) setOnSiteOpen(false);
+                }}
+              >
+                <button
+                  type="button"
+                  aria-expanded={onSiteOpen}
+                  onClick={() => {
+                    if (collapsed) {
+                      setCollapsed(false);
+                      setOnSiteOpen(true);
+                    } else {
+                      setOnSiteOpen((open) => !open);
+                    }
+                  }}
+                  title={collapsed ? item.label : undefined}
+                  className={`w-full flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm transition-colors ${
+                    active
+                      ? "bg-[#F2BE22] text-[#1B5E2C] font-medium"
+                      : "text-[#CFE3CE] hover:bg-white/10"
+                  } ${collapsed ? "justify-center" : ""}`}
+                >
+                  {item.icon(color)}
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 truncate text-left">{item.label}</span>
+                      <svg viewBox="0 0 20 20" className={`h-4 w-4 transition-transform ${onSiteOpen ? "rotate-180" : ""}`} fill="none">
+                        <path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </>
+                  )}
+                </button>
+                {!collapsed && onSiteOpen && (
+                  <div className="ml-5 mt-1 space-y-1 border-l border-white/20 pl-3">
+                    {onSiteItem.children.map((child) => {
+                      const childActive = location.pathname === child.path;
+                      return (
+                        <button
+                          key={child.path}
+                          type="button"
+                          aria-current={childActive ? "page" : undefined}
+                          onClick={() => {
+                            navigate(child.path);
+                            if (onNavigate) onNavigate();
+                          }}
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                            childActive
+                              ? "bg-white/15 text-white font-medium"
+                              : "text-[#CFE3CE] hover:bg-white/10"
+                          }`}
+                        >
+                          {child.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
           return (
             <button
               key={item.path}
@@ -383,7 +467,7 @@ function StaffSidebarInner({
       </nav>
 
       {/* Logout */}
-      <div className="px-2 py-4 border-t border-white/10">
+      <div className="shrink-0 border-t border-white/10 px-2 py-4">
         <button
           onClick={handleLogout}
           disabled={loggingOut}
@@ -458,7 +542,7 @@ function StaffRoutes() {
         element={
           <ProtectedRoute>
             <StaffSidebarLayout>
-              <StudentList />
+              <StudentList onSessionExpired={handleSessionExpired} />
             </StaffSidebarLayout>
           </ProtectedRoute>
         }
@@ -499,6 +583,26 @@ function StaffRoutes() {
           <ProtectedRoute>
             <StaffSidebarLayout>
               <DonationManagement />
+            </StaffSidebarLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff/on-site/enrollment"
+        element={
+          <ProtectedRoute>
+            <StaffSidebarLayout>
+              <OnSiteEnrollment />
+            </StaffSidebarLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff/on-site/donation"
+        element={
+          <ProtectedRoute>
+            <StaffSidebarLayout>
+              <OnSiteDonation />
             </StaffSidebarLayout>
           </ProtectedRoute>
         }

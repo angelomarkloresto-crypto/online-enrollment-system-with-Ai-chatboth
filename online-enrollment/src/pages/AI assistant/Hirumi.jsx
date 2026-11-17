@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import hirumiAvatar from "../../assets/hirumi-avatar.png";
 
 const API_URL =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_HIRUMI_API_URL) ||
   "/backend-online-enrollment/ai/php/chat.php";
+const GREETING_DURATION_MS = 2600;
+const GREETING_COOLDOWN_MS = 180000;
 
 const INITIAL_MESSAGE = {
   id: "welcome",
@@ -12,25 +14,91 @@ const INITIAL_MESSAGE = {
   text: "Hello I'm Hirumi 🤖 Ask me about enrollment rules, requirements, or anything educational I can help with.",
 };
 
+const PUBLIC_INITIAL_MESSAGE = {
+  id: "welcome",
+  sender: "hirumi",
+  text: "Hi! I'm Hirumi. Ask me about creating an account, completing this form, required documents, or uploads. I can't see personal application status or live enrollment records. For concerns I can't answer, please contact the school staff.",
+};
+
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export default function Hirumi({ role = "admin", userId = "" }) {
+export default function Hirumi({ role = "admin", userId = "", publicAccess = false, enableGreeting = false }) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [, setError] = useState(null);
   const [unread, setUnread] = useState(0);
-  const [messages, setMessages] = useState([INITIAL_MESSAGE]);
-  const [position, setPosition] = useState({ x: window.innerWidth - 92, y: window.innerHeight - 140 });
+  const [messages, setMessages] = useState(() => [
+    publicAccess ? PUBLIC_INITIAL_MESSAGE : INITIAL_MESSAGE,
+  ]);
+  const [greetingVisible, setGreetingVisible] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [position, setPosition] = useState({ x: window.innerWidth - 80, y: window.innerHeight - 80 });
 
+  const prefersReducedMotion = useReducedMotion();
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
-  const dragState = useRef({ active: false, moved: false, startX: 0, startY: 0, originX: 0, originY: 0 });
-  const panelId = "hirumi-admin-panel";
+  const greetingAnimationTimerRef = useRef(null);
+  const greetingCooldownTimerRef = useRef(null);
+  const nextGreetingAtRef = useRef(null);
+  const dragState = useRef({
+    active: false,
+    moved: false,
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    originX: 0,
+    originY: 0,
+  });
+  const panelId = publicAccess ? "hirumi-enrollment-panel" : `hirumi-${role}-panel`;
 
   const clamp = useCallback((value, min, max) => Math.min(Math.max(value, min), max), []);
+
+  useEffect(() => {
+    if (!enableGreeting) return undefined;
+
+    const clearGreetingTimers = () => {
+      if (greetingAnimationTimerRef.current !== null) {
+        window.clearTimeout(greetingAnimationTimerRef.current);
+        greetingAnimationTimerRef.current = null;
+      }
+      if (greetingCooldownTimerRef.current !== null) {
+        window.clearTimeout(greetingCooldownTimerRef.current);
+        greetingCooldownTimerRef.current = null;
+      }
+    };
+
+    if (open || hasInteracted) {
+      clearGreetingTimers();
+      setGreetingVisible(false);
+      return clearGreetingTimers;
+    }
+
+    const startGreeting = () => {
+      greetingCooldownTimerRef.current = null;
+      setGreetingVisible(true);
+      greetingAnimationTimerRef.current = window.setTimeout(() => {
+        greetingAnimationTimerRef.current = null;
+        setGreetingVisible(false);
+        nextGreetingAtRef.current = Date.now() + GREETING_COOLDOWN_MS;
+        greetingCooldownTimerRef.current = window.setTimeout(
+          startGreeting,
+          GREETING_COOLDOWN_MS,
+        );
+      }, GREETING_DURATION_MS);
+    };
+
+    if (nextGreetingAtRef.current === null) {
+      startGreeting();
+    } else {
+      const delay = Math.max(0, nextGreetingAtRef.current - Date.now());
+      greetingCooldownTimerRef.current = window.setTimeout(startGreeting, delay);
+    }
+
+    return clearGreetingTimers;
+  }, [enableGreeting, hasInteracted, open]);
 
   useEffect(() => {
     if (open) {
@@ -56,7 +124,7 @@ export default function Hirumi({ role = "admin", userId = "" }) {
 
   useEffect(() => {
     const handlePointerMove = (event) => {
-      if (!dragState.current.active) return;
+      if (!dragState.current.active || event.pointerId !== dragState.current.pointerId) return;
 
       const { startX, startY, originX, originY } = dragState.current;
       const deltaX = event.clientX - startX;
@@ -72,19 +140,31 @@ export default function Hirumi({ role = "admin", userId = "" }) {
       });
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (event) => {
+      if (!dragState.current.active || event.pointerId !== dragState.current.pointerId) return;
       dragState.current.active = false;
+      dragState.current.pointerId = null;
       document.body.style.userSelect = "";
+    };
+
+    const handlePointerCancel = (event) => {
+      handlePointerUp(event);
+      dragState.current.moved = false;
     };
 
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("pointercancel", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerCancel);
 
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerCancel);
+      if (dragState.current.active) {
+        dragState.current.active = false;
+        dragState.current.pointerId = null;
+        document.body.style.userSelect = "";
+      }
     };
   }, [clamp]);
 
@@ -98,6 +178,7 @@ export default function Hirumi({ role = "admin", userId = "" }) {
     dragState.current = {
       active: true,
       moved: false,
+      pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
       originX: position.x,
@@ -105,7 +186,7 @@ export default function Hirumi({ role = "admin", userId = "" }) {
     };
 
     document.body.style.userSelect = "none";
-    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const handleHeadClick = (event) => {
@@ -122,20 +203,31 @@ export default function Hirumi({ role = "admin", userId = "" }) {
     if (!text || loading) return;
 
     setError(null);
+    setHasInteracted(true);
     setMessages((prev) => [...prev, { id: uid(), sender: "admin", text }]);
     setMessage("");
     setLoading(true);
 
     try {
-      const payload = { message: text, role, user_id: userId };
-      if (role === "student") payload.student_id = userId;
-      else if (role === "staff") payload.staff_id = userId;
-      else if (role === "admin") payload.admin_id = userId;
+      const conversation = messages
+        .filter((item) => item.id !== "welcome")
+        .slice(-12)
+        .map((item) => ({
+          role: item.sender === "hirumi" ? "assistant" : "user",
+          content: item.text,
+        }));
+      const payload = publicAccess
+        ? { message: text, role: "student" }
+        : { message: text, role, user_id: userId, conversation };
+      if (!publicAccess && role === "student") payload.student_id = userId;
+      else if (!publicAccess && role === "staff") payload.staff_id = userId;
+      else if (!publicAccess && role === "admin") payload.admin_id = userId;
 
       const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        ...(publicAccess ? { credentials: "omit" } : {}),
       });
 
       const raw = await response.text();
@@ -168,7 +260,7 @@ export default function Hirumi({ role = "admin", userId = "" }) {
       setLoading(false);
       textareaRef.current?.focus();
     }
-  }, [message, loading, userId, role, open]);
+  }, [message, loading, userId, role, open, messages, publicAccess]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -192,7 +284,7 @@ export default function Hirumi({ role = "admin", userId = "" }) {
             <motion.div
               id={panelId}
               role="dialog"
-              aria-label="Hirumi admin assistant"
+              aria-label={`Hirumi ${publicAccess ? "enrollment" : role} assistant`}
               aria-hidden={!open}
               initial={{ opacity: 0, y: -28, scale: 0.94 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -302,14 +394,25 @@ export default function Hirumi({ role = "admin", userId = "" }) {
           )}
           </AnimatePresence>
 
+          {greetingVisible && !open && (
+            <div
+              role="status"
+              className="pointer-events-none absolute bottom-[calc(100%+0.75rem)] right-0 w-max rounded-2xl border border-[#d6ead2] bg-white px-4 py-2 text-sm font-semibold text-[#155000] shadow-lg"
+              style={{ maxWidth: "min(280px, calc(100vw - 24px))" }}
+            >
+              Hi! I'm Assistant Hirumi
+            </div>
+          )}
+
           <button
             type="button"
             onPointerDown={handleHeadPointerDown}
             onClick={handleHeadClick}
             aria-label={open ? "Fold Hirumi chat" : "Open Hirumi chat"}
+            aria-haspopup="dialog"
             aria-expanded={open}
             aria-controls={panelId}
-            className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-slate-950/20 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.6)] transition-transform duration-200 hover:scale-105 active:scale-95 backdrop-blur-3xl"
+            className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-slate-950/20 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.6)] transition-colors duration-200 hover:border-white/60 active:brightness-95 backdrop-blur-3xl"
             style={{ touchAction: "none" }}
           >
             {!open && unread > 0 && (
@@ -320,7 +423,15 @@ export default function Hirumi({ role = "admin", userId = "" }) {
             {open ? (
               <span className="text-xl text-white" aria-hidden="true">✕</span>
             ) : (
-              <img src={hirumiAvatar} alt="Open Hirumi chat" className="h-full w-full object-cover"
+              <motion.img
+                src={hirumiAvatar}
+                alt="Open Hirumi chat"
+                className="h-full w-full object-cover"
+                animate={{ rotate: greetingVisible && !prefersReducedMotion ? 360 : 0 }}
+                transition={{
+                  duration: greetingVisible && !prefersReducedMotion ? GREETING_DURATION_MS / 1000 : 0,
+                  ease: [0.45, 0, 0.55, 1],
+                }}
                 onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/assets/hirumi-avatar.svg'; }}
               />
             )}

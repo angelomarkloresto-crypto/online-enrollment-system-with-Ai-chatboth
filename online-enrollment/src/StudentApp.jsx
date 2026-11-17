@@ -230,7 +230,7 @@ function StudentSidebarInner({
 
       <button
         onClick={() => setCollapsed((c) => !c)}
-        className="mx-auto mt-3 mb-1 hidden md:flex items-center justify-center h-7 w-7 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+        className="mx-auto mt-3 mb-1 hidden h-7 w-7 items-center justify-center rounded-lg bg-white/10 transition-colors hover:bg-white/20 lg:flex"
         title={collapsed ? "Expand" : "Collapse"}
       >
         <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
@@ -248,7 +248,7 @@ function StudentSidebarInner({
         </div>
       )}
 
-      <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-3">
         {NAV.map((item) => {
           const active = location.pathname.startsWith(item.path);
           return (
@@ -269,7 +269,7 @@ function StudentSidebarInner({
         })}
       </nav>
 
-      <div className="px-2 py-4 border-t border-white/10">
+      <div className="shrink-0 border-t border-white/10 px-2 py-4">
         <button
           onClick={handleLogout}
           disabled={loggingOut}
@@ -304,14 +304,14 @@ function StudentLayout({ children }) {
 
   const currentNav  = NAV.find((n) => location.pathname.startsWith(n.path));
   const currentLabel = currentNav?.label ?? "Student Portal";
-  const sidebarW    = collapsed ? "w-16" : "w-60 lg:w-64";
+  const sidebarW    = collapsed ? "w-16" : "w-60 xl:w-64";
 
   return (
-    <div className="student-staff-theme min-h-screen flex flex-col bg-[#FAFAF5]">
+    <div className="student-staff-theme flex min-h-screen min-w-0 flex-col bg-[#FAFAF5]">
 
       {/* ── Desktop sidebar ── */}
       <aside
-        className={`hidden md:flex flex-col bg-[#1B5E2C] text-[#FAFAF5] shrink-0 fixed top-0 left-0 h-full z-30 transition-all duration-200 ${sidebarW}`}
+        className={`fixed left-0 top-0 z-30 hidden h-dvh shrink-0 flex-col bg-[#1B5E2C] text-[#FAFAF5] transition-all duration-200 lg:flex ${sidebarW}`}
       >
         <StudentSidebarInner
           collapsed={collapsed}
@@ -327,9 +327,9 @@ function StudentLayout({ children }) {
 
       {/* ── Mobile drawer ── */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setDrawerOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-[#1B5E2C] text-[#FAFAF5] flex flex-col z-50">
+          <aside className="absolute inset-y-0 left-0 z-50 flex h-dvh w-64 max-w-[85vw] flex-col bg-[#1B5E2C] text-[#FAFAF5]">
             <StudentSidebarInner
               collapsed={collapsed}
               student={student}
@@ -346,14 +346,14 @@ function StudentLayout({ children }) {
       )}
 
       {/* ── Page wrapper ── */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-200 pb-16 md:pb-0 ${collapsed ? "md:ml-16" : "md:ml-60 lg:ml-64"}`}>
+      <div className={`flex min-w-0 flex-1 flex-col pb-16 transition-all duration-200 lg:pb-0 ${collapsed ? "lg:ml-16" : "lg:ml-60 xl:ml-64"}`}>
 
         {/* Top bar */}
         <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-[#D9E8D5] bg-white px-4 sm:px-6 py-3">
           <div className="flex items-center gap-3 min-w-0">
             {/* Mobile hamburger */}
             <button
-              className="md:hidden h-9 w-9 rounded-lg border border-[#D9E8D5] flex items-center justify-center shrink-0"
+              className="lg:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#D9E8D5]"
               onClick={() => setDrawerOpen(true)}
             >
               <HamburgerIcon />
@@ -397,7 +397,7 @@ function StudentLayout({ children }) {
         <AnimatePresence mode="wait" initial={false}>
           <motion.main
             key={location.pathname}
-            className="flex-1 min-w-0 overflow-x-hidden"
+            className="min-w-0 flex-1 overflow-x-hidden"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -411,7 +411,7 @@ function StudentLayout({ children }) {
       <Hirumi role="student" userId={student?.student_id} />
 
       {/* ── Mobile bottom navigation ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#D9E8D5] flex items-center">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 flex items-center border-t border-[#D9E8D5] bg-white lg:hidden">
         {NAV.map((item) => {
           const active = location.pathname.startsWith(item.path);
           return (
@@ -449,7 +449,7 @@ export default function StudentApp() {
 }
 
 function StudentRoutes() {
-  const { isLoggedIn, isEnrolled, login } = useStudentAuth();
+  const { isLoggedIn, login } = useStudentAuth();
 
   return (
     <Routes>
@@ -501,15 +501,11 @@ function StudentRoutes() {
         path="/student/enroll"
         element={
           <ProtectedRoute>
-            {isEnrolled ? (
-              <Navigate to="/student/dashboard" replace />
-            ) : (
-              <StudentLayout>
-                <EnrollmentForm
-                  onBack={() => window.location.href = "/student/dashboard"}
-                />
-              </StudentLayout>
-            )}
+            <StudentLayout>
+              <EnrollmentForm
+                onBack={() => window.location.href = "/student/dashboard"}
+              />
+            </StudentLayout>
           </ProtectedRoute>
         }
       />

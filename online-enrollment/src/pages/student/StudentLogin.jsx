@@ -1,13 +1,27 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { normalizePhilippineMobileNumber } from "../../utils/studentPhone";
 
-export const getApiBase = () => "/backend-online-enrollment/student";
+const API_BASE = "/backend-online-enrollment/student";
 
 export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
-  const [form, setForm] = useState({ gmail: "", password: "" });
+  const [form, setForm] = useState({ identifier: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [authenticatedStudent, setAuthenticatedStudent] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const submissionInProgressRef = useRef(false);
+
+  function completeLogin(student) {
+    const studentId = student?.student_id ?? student?.lrn ?? student?.email ?? "";
+    localStorage.setItem("student_id", String(studentId));
+    localStorage.setItem("student_name", `${student?.first_name ?? ""} ${student?.last_name ?? ""}`.trim());
+    localStorage.setItem("student_gmail", student?.gmail ?? student?.email ?? "");
+    onLoginSuccess?.(student);
+  }
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -17,20 +31,31 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (submissionInProgressRef.current) return;
     setErrorMsg(null);
 
-    if (!form.gmail.trim() || !form.password) {
-      setErrorMsg("Enter both your Gmail and password.");
+    const enteredIdentifier = form.identifier.trim();
+    if (!enteredIdentifier || !form.password) {
+      setErrorMsg("Enter your phone number or Gmail address and password.");
       return;
     }
 
+    const identifier = enteredIdentifier.includes("@")
+      ? enteredIdentifier
+      : normalizePhilippineMobileNumber(enteredIdentifier);
+    if (!identifier) {
+      setErrorMsg("Enter a valid Philippine mobile number or Gmail address.");
+      return;
+    }
+
+    submissionInProgressRef.current = true;
     setSubmitting(true);
     try {
       const body = new FormData();
-      body.append("gmail", form.gmail.trim());
+      body.append("identifier", identifier);
       body.append("password", form.password);
 
-      const res = await fetch(`${getApiBase()}/student_login.php`, {
+      const res = await fetch(`${API_BASE}/student_login.php`, {
         method: "POST",
         credentials: "include",
         body,
@@ -38,19 +63,64 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
       const data = await res.json();
 
       if (!data.success) {
-        setErrorMsg(data.message || "Invalid Gmail or password.");
+        setErrorMsg(data.message || "Invalid phone number/Gmail address or password.");
         return;
       }
 
-      const studentId = data.student?.student_id ?? data.student?.lrn ?? data.student?.email ?? "";
-      localStorage.setItem("student_id", String(studentId));
-      localStorage.setItem("student_name", `${data.student.first_name} ${data.student.last_name}`);
-      localStorage.setItem("student_gmail", data.student.gmail ?? data.student.email ?? "");
+      if (data.must_change_password) {
+        setAuthenticatedStudent(data.student);
+        setMustChangePassword(true);
+        setErrorMsg(null);
+        return;
+      }
 
-      onLoginSuccess?.(data.student);
+      completeLogin(data.student);
     } catch {
       setErrorMsg("Could not reach the server. Please try again.");
     } finally {
+      submissionInProgressRef.current = false;
+      setSubmitting(false);
+    }
+  }
+
+  async function handleRequiredPasswordChange(e) {
+    e.preventDefault();
+    if (submissionInProgressRef.current) return;
+    setErrorMsg(null);
+
+    if (newPassword.length < 8) {
+      setErrorMsg("Your new password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMsg("The new password and confirmation do not match.");
+      return;
+    }
+
+    submissionInProgressRef.current = true;
+    setSubmitting(true);
+    try {
+      const body = new FormData();
+      body.append("current_password", form.password);
+      body.append("new_password", newPassword);
+      body.append("confirm_password", confirmPassword);
+
+      const response = await fetch(`${API_BASE}/change_student_password.php`, {
+        method: "POST",
+        credentials: "include",
+        body,
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        setErrorMsg(data.message || "Could not change your password. Please try again.");
+        return;
+      }
+
+      completeLogin(authenticatedStudent);
+    } catch {
+      setErrorMsg("Could not reach the server. Please try again.");
+    } finally {
+      submissionInProgressRef.current = false;
       setSubmitting(false);
     }
   }
@@ -86,15 +156,21 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
           <div className="mb-6 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#326b22]">Student Access</p>
             <h1 className="mt-2 text-3xl font-semibold text-[#14251a]" style={{ fontFamily: "'Fraunces', serif" }}>
-              Welcome back
+              {mustChangePassword ? "Create a new password" : "Welcome back"}
             </h1>
-            <p className="mt-2 text-sm text-[#526257]">Sign in with your Gmail and password.</p>
+            <p className="mt-2 text-sm text-[#526257]">
+              {mustChangePassword
+                ? "You must update your temporary password before continuing."
+                : "Sign in with your phone number or Gmail and password."}
+            </p>
           </div>
 
-          <div className="mb-4 rounded-xl bg-[#155000] px-5 py-4 text-sm leading-relaxed text-white">
-            <span className="font-semibold">New student?</span> Your initial password is your
-            {" "}<span className="font-semibold">LRN (Learner Reference Number)</span>.
-          </div>
+          {!mustChangePassword && (
+            <div className="mb-4 rounded-xl bg-[#155000] px-5 py-4 text-sm leading-relaxed text-white">
+              <span className="font-semibold">New student?</span> Your initial password is your
+              {" "}<span className="font-semibold">LRN (Learner Reference Number)</span>.
+            </div>
+          )}
 
           <motion.div
             initial={{ scale: 0.97 }}
@@ -108,19 +184,69 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
               </div>
             )}
 
+            {mustChangePassword ? (
+              <form onSubmit={handleRequiredPasswordChange} noValidate className="space-y-5">
+                <div>
+                  <label htmlFor="new-password" className="mb-1.5 block text-sm font-medium">
+                    New Password
+                  </label>
+                  <input
+                    id="new-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(event) => {
+                      setNewPassword(event.target.value);
+                      setErrorMsg(null);
+                    }}
+                    minLength={8}
+                    required
+                    placeholder="At least 8 characters"
+                    className="w-full rounded-lg border border-[#d7e4d2] bg-white px-4 py-3 text-sm text-[#14251a] placeholder:text-[#879489] outline-none transition focus:ring-2 focus:ring-[#a8c437]"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="confirm-new-password" className="mb-1.5 block text-sm font-medium">
+                    Confirm New Password
+                  </label>
+                  <input
+                    id="confirm-new-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(event) => {
+                      setConfirmPassword(event.target.value);
+                      setErrorMsg(null);
+                    }}
+                    required
+                    placeholder="Re-enter your new password"
+                    className="w-full rounded-lg border border-[#d7e4d2] bg-white px-4 py-3 text-sm text-[#14251a] placeholder:text-[#879489] outline-none transition focus:ring-2 focus:ring-[#a8c437]"
+                  />
+                </div>
+                <motion.button
+                  type="submit"
+                  disabled={submitting}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ x: 12, scale: 0.97 }}
+                  className="w-full rounded-full bg-[#a8bd00] px-4 py-3 text-sm font-semibold text-[#14251a] shadow-[2px_3px_0_rgba(0,0,0,0.25)] transition hover:bg-[#b8cd12] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting ? "Updating password…" : "Update Password"}
+                </motion.button>
+              </form>
+            ) : (
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
               <div>
-                <label htmlFor="gmail" className="mb-1.5 block text-sm font-medium">
-                  Gmail address
+                <label htmlFor="identifier" className="mb-1.5 block text-sm font-medium">
+                  Phone Number or Gmail Address
                 </label>
                 <input
-                  id="gmail"
-                  name="gmail"
-                  type="email"
-                  autoComplete="email"
-                  value={form.gmail}
+                  id="identifier"
+                  name="identifier"
+                  type="text"
+                  autoComplete="username"
+                  value={form.identifier}
                   onChange={handleChange}
-                  placeholder="juan@gmail.com"
+                  placeholder="Input your Phone Number or Gmail"
                   className="w-full rounded-lg border border-[#d7e4d2] bg-white px-4 py-3 text-sm text-[#14251a] placeholder:text-[#879489] outline-none transition focus:ring-2 focus:ring-[#a8c437]"
                 />
               </div>
@@ -172,6 +298,7 @@ export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
                 </motion.button>
               </div>
             </form>
+            )}
           </motion.div>
         </motion.section>
       </main>
