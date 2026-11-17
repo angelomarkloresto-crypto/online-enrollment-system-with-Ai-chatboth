@@ -1,0 +1,7 @@
+{
+  "name": "online-enrollment-system",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix online-enrollment run dev --"
+  }
+}
