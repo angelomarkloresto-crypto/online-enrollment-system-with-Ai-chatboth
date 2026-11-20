@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { apiUrl } from "../../config";
 
-const API_BASE = "/backend-online-enrollment/staff";
+const API_BASE = apiUrl("/backend-online-enrollment/staff");
 const INPUT_CLASS =
   "mt-1.5 w-full rounded-lg border border-[#CBD9C8] bg-white px-3 py-2.5 text-sm text-[#1B5E2C] outline-none focus:border-[#1B5E2C] focus:ring-1 focus:ring-[#1B5E2C] disabled:bg-[#FAFAF5]";
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -14,8 +15,13 @@ function getErrorMessage(data, fallback) {
 
 function getImageUrl(imageUrl, itemDonationId) {
   if (imageUrl) {
-    if (/^(?:https?:)?\/\//i.test(imageUrl) || imageUrl.startsWith("/")) return imageUrl;
-    return `/backend-online-enrollment/${imageUrl}`;
+    if (/^(?:https?:)?\/\//i.test(imageUrl)) return imageUrl;
+    const route = imageUrl.replace(/^\/+/, "");
+    return apiUrl(
+      route.startsWith("backend-online-enrollment/")
+        ? `/${route}`
+        : `/backend-online-enrollment/${route}`,
+    );
   }
   return `${API_BASE}/get_on_site_item_donation_image.php?item_donation_id=${encodeURIComponent(itemDonationId)}`;
 }

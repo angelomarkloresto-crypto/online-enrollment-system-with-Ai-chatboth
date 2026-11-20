@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 
-// const API_BASE = "http://localhost/backend-online-enrollment/admin";
-export const getApiBase = () => {
-  return "http://localhost/backend-online-enrollment/admin";
+import { apiUrl } from "../../config";
+
+const getApiBase = () => {
+  return apiUrl("/backend-online-enrollment/admin");
 };
 export default function StaffManagement() {
   const [staff, setStaff] = useState([]);

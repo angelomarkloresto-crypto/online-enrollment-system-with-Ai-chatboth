@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import hirumiAvatar from "../../assets/hirumi-avatar.png";
+import { apiUrl } from "../../config";
 
 const API_URL =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_HIRUMI_API_URL) ||
-  "/backend-online-enrollment/ai/php/chat.php";
+  apiUrl("/backend-online-enrollment/ai/php/chat.php");
 const GREETING_DURATION_MS = 2600;
 const GREETING_COOLDOWN_MS = 180000;
 

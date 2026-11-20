@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { apiUrl } from "../../config";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-const ADMIN_API = "/backend-online-enrollment/admin";
+const ADMIN_API = apiUrl("/backend-online-enrollment/admin");
 const GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 
 async function requestJson(url, options = {}) {

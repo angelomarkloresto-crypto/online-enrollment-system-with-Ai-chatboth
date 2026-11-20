@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 
-// const API_BASE = "http://localhost/backend-online-enrollment/staff";
-export const getApiBase = () => {
-  return "http://localhost/backend-online-enrollment/staff";
+import { apiUrl } from "../../config";
+
+const getApiBase = () => {
+  return apiUrl("/backend-online-enrollment/staff");
 };
 
 export default function AddAndUpdateSubject() {

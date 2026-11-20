@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { apiUrl } from "../../config";
 import { motion } from "framer-motion";
 import {
   EMPTY_LEARNER_DISCLOSURES,
@@ -9,12 +10,9 @@ import LearnerDisclosureFields from "../../components/LearnerDisclosureFields";
 
 
 
-// const OCR_BASE     = "http://localhost/backend-online-enrollment/ocr";
-// const STUDENT_BASE = "http://localhost/backend-online-enrollment/student";
-// const STAFF_BASE   = "http://localhost/backend-online-enrollment/staff";
-const getOcrApiBase = () => "/backend-online-enrollment/ocr";
-const getStudentApiBase = () => "/backend-online-enrollment/student";
-const getApiBase = () => "/backend-online-enrollment/student";
+const getOcrApiBase = () => apiUrl("/backend-online-enrollment/ocr");
+const getStudentApiBase = () => apiUrl("/backend-online-enrollment/student");
+const getApiBase = () => apiUrl("/backend-online-enrollment/student");
 
 
 const SHS_GRADES = ["11","12"];

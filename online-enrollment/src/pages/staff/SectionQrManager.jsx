@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { apiUrl } from "../../config";
 
-const ADMIN_BASE = "/backend-online-enrollment/staff";
+const ADMIN_BASE = apiUrl("/backend-online-enrollment/staff");
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB, matches the backend limit
@@ -233,7 +234,7 @@ export default function SectionQrManager() {
             ) : qrData ? (
               <div className="flex items-center gap-4">
                 <img
-                  src={`/backend-online-enrollment/uploads/${qrData.qr_code}`}
+                  src={apiUrl(`/backend-online-enrollment/uploads/${qrData.qr_code}`)}
                   alt="Current adviser QR code"
                   className="h-32 w-32 object-contain rounded-xl border border-[#D9E8D5] bg-[#FAFAF5]"
                 />

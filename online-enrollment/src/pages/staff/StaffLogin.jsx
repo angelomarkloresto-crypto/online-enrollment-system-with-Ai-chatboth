@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { apiUrl } from "../../config";
 
 
-const API_BASE = "/backend-online-enrollment/staff";
+const API_BASE = apiUrl("/backend-online-enrollment/staff");
 
 export default function StaffLogin({ onLoginSuccess }) {
   const [form, setForm]             = useState({ email: "", password: "" });

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from "../../config";
 import { motion } from "framer-motion";
 // This Api use for offline
-const API_BASE = "http://localhost/backend-online-enrollment/admin";
+const API_BASE = apiUrl("/backend-online-enrollment/admin");
 // export const getApiBase = () => {
-//   return "/backend-online-enrollment/admin";
 // };
 
 const STAT_CARDS = [
@@ -161,7 +161,7 @@ export default function AdminDashboard() {
     setRequestsError(null);
     try {
       //Change api if Couldn't reach the server
-      const res = await fetch("/backend-online-enrollment/staff/get_pending_enrollments.php", {
+      const res = await fetch(apiUrl("/backend-online-enrollment/staff/get_pending_enrollments.php"), {
         credentials: "include",
       });
  

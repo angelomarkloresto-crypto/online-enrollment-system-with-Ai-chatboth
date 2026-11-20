@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from "../../config";
 
-// const API_BASE = "http://localhost/backend-online-enrollment/admin";
-export const getApiBase = () => {
-  return "http://localhost/backend-online-enrollment/admin";
+const getApiBase = () => {
+  return apiUrl("/backend-online-enrollment/admin");
 };
 export default function AdminRegister() {
   const [checking, setChecking] = useState(true);

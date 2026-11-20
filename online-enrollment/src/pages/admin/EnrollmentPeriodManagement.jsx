@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { apiUrl } from "../../config";
 import { useNavigate } from "react-router-dom";
 
-const ADMIN_API = "/backend-online-enrollment/admin";
+const ADMIN_API = apiUrl("/backend-online-enrollment/admin");
 const COVERAGE_LABELS = {
   all_grade_levels: "All Grade Levels",
   shs_second_semester: "Senior High School – 2nd Semester",

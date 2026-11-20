@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
+import { apiUrl } from "./config";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BrowserRouter, Routes, Route,
@@ -43,8 +44,8 @@ import Hirumi from "./pages/AI assistant/Hirumi";
  *              : <App />;
  */
 
-const LOGOUT_URL = "/backend-online-enrollment/student/student_logout.php";
-const ENROLLMENT_STATUS_URL = "/backend-online-enrollment/student/check_enrollment_status.php";
+const LOGOUT_URL = apiUrl("/backend-online-enrollment/student/student_logout.php");
+const ENROLLMENT_STATUS_URL = apiUrl("/backend-online-enrollment/student/check_enrollment_status.php");
 
 /* ── Auth context ─────────────────────────────────────────────── */
 const StudentAuthContext = createContext(null);

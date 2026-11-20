@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from "../../config";
 import { motion } from "framer-motion";
 import SectionCreationWizard from "./SectionCreationWizard";
 
 
-const API_BASE = "/backend-online-enrollment/staff";
+const API_BASE = apiUrl("/backend-online-enrollment/staff");
 
 const GRADE_LEVELS = [
   { value: "7",  label: "Grade 7",  type: "JHS" },

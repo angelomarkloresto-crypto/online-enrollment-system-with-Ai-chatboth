@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { apiUrl } from "../../config";
 
-const API_BASE = "/backend-online-enrollment/student";
-const OCR_BASE = "/backend-online-enrollment/ocr";
+const API_BASE = apiUrl("/backend-online-enrollment/student");
+const OCR_BASE = apiUrl("/backend-online-enrollment/ocr");
 const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
 const RECEIPT_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const OCR_FIELDS = [
@@ -311,7 +312,7 @@ export default function DonationPage() {
           <div className={`mt-4 flex flex-col gap-4 ${qrZoomed ? "items-center" : "sm:flex-row sm:items-center"}`}>
             <div className={`flex ${qrZoomed ? "flex-col items-center" : "items-center"} gap-3`}>
               <img
-                src={`/backend-online-enrollment/uploads/${section.qr_code}`}
+                src={apiUrl(`/backend-online-enrollment/uploads/${section.qr_code}`)}
                 alt={`Donation QR code for Grade ${section.grade_level}, ${section.section_name}`}
                 className={`${qrZoomed ? "h-72 w-72 sm:h-96 sm:w-96" : "h-48 w-48"} max-w-full rounded-xl border border-[#D9E8D5] bg-[#FAFAF5] object-contain p-2`}
               />

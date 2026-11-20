@@ -1,4 +1,5 @@
 import { useState, createContext, useContext, useCallback } from "react";
+import { apiUrl } from "./config";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BrowserRouter, Routes, Route,
@@ -39,7 +40,7 @@ import OnSiteDonation from "./pages/staff/OnSiteDonation";
  *   by path prefix — see bottom of this file for an example.
  */
 
-const LOGOUT_URL = "/backend-online-enrollment/staff/staff_logout.php";
+const LOGOUT_URL = apiUrl("/backend-online-enrollment/staff/staff_logout.php");
 
 /* ── Auth context ─────────────────────────────────────────────── */
 const StaffAuthContext = createContext(null);

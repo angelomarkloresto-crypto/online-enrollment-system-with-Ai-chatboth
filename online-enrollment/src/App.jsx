@@ -1,6 +1,7 @@
 // import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { apiUrl } from "./config";
 import {
   BrowserRouter, Routes, Route,
   Navigate, useNavigate, useLocation,
@@ -70,7 +71,7 @@ function AuthProvider({ children }) {
   }
 
   async function logout() {
-    try { await fetch("/admin/admin_logout.php", { method: "POST", credentials: "include" }); }
+    try { await fetch(apiUrl("/backend-online-enrollment/admin/admin_logout.php"), { method: "POST", credentials: "include" }); }
     catch { /* proceed regardless */ }
     localStorage.removeItem("admin_id");
     setAdminId(null);

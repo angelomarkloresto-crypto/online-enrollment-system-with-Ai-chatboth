@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { apiUrl } from "../../config";
 
-const API_BASE = "/backend-online-enrollment/staff";
+const API_BASE = apiUrl("/backend-online-enrollment/staff");
 const JUNIOR_HIGH_GRADES = [7, 8, 9, 10];
 const SENIOR_HIGH_GRADES = [11, 12];
 

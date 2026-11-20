@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from "../../config";
 
 
 
-const TIMETABLE_BASE = "/backend-online-enrollment/student";
-const STUDENT_BASE   = "/backend-online-enrollment/student";
+const TIMETABLE_BASE = apiUrl("/backend-online-enrollment/student");
+const STUDENT_BASE   = apiUrl("/backend-online-enrollment/student");
 
 const DAY_ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
@@ -307,7 +308,7 @@ export default function StudentTimetable() {
             <div className="text-center">
               <div className="bg-white rounded-2xl border border-[#235347]/15 p-5 inline-block">
                 <img
-                  src={`/backend-online-enrollment/uploads/${qrData.qr_code}`}
+                  src={apiUrl(`/backend-online-enrollment/uploads/${qrData.qr_code}`)}
                   alt="Adviser QR Code"
                   className="h-52 w-52 object-contain mx-auto"
                 />
@@ -328,7 +329,7 @@ export default function StudentTimetable() {
                 )}
               </div>
               <a
-                href={`/backend-online-enrollment/uploads/${qrData.qr_code}`}
+                href={apiUrl(`/backend-online-enrollment/uploads/${qrData.qr_code}`)}
                 download
                 className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[#235347]/15 text-sm text-[#0B2B26] px-4 py-2 hover:bg-[#DAF1DE]/40 transition-colors"
               >

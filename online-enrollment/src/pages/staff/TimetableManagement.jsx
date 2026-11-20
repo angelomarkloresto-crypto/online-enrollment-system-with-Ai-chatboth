@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from "../../config";
 
 
-const API_BASE = "/backend-online-enrollment/staff";
+const API_BASE = apiUrl("/backend-online-enrollment/staff");
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 

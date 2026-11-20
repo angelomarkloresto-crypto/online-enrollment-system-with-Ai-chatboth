@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 
-// const API_BASE = "http://localhost/backend-online-enrollment/student";
-export const getApiBase = () => "/backend-online-enrollment/student";
+import { apiUrl } from "../../config";
+
+const getApiBase = () => apiUrl("/backend-online-enrollment/student");
 
 export default function DownloadConfirmation() {
   const studentId = localStorage.getItem("student_id");

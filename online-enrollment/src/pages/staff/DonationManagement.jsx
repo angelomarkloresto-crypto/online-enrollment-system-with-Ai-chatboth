@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { apiUrl } from "../../config";
 
-const API_BASE = "/backend-online-enrollment/staff";
+const API_BASE = apiUrl("/backend-online-enrollment/staff");
 const GRADES = ["7", "8", "9", "10", "11", "12"];
 
 export default function DonationManagement() {
@@ -369,7 +370,11 @@ function formatDate(value) {
 
 function getReceiptUrl(path) {
   const value = String(path);
-  return /^https?:\/\//i.test(value)
-    ? value
-    : `/backend-online-enrollment/${value.replace(/^\/+/, "")}`;
+  if (/^(?:https?:)?\/\//i.test(value)) return value;
+  const route = value.replace(/^\/+/, "");
+  return apiUrl(
+    route.startsWith("backend-online-enrollment/")
+      ? `/${route}`
+      : `/backend-online-enrollment/${route}`,
+  );
 }

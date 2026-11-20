@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from "../../config";
 
 
-const API_BASE = "/backend-online-enrollment/student";
+const API_BASE = apiUrl("/backend-online-enrollment/student");
 
 const SUFFIXES = ["", "Jr.", "Sr.", "II", "III", "IV"];
 const isValidOptionalPhone = (value) =>

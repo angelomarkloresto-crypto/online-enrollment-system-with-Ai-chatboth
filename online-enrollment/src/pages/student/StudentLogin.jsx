@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
+import { apiUrl } from "../../config";
 import { motion } from "framer-motion";
 import { normalizePhilippineMobileNumber } from "../../utils/studentPhone";
 
-const API_BASE = "/backend-online-enrollment/student";
+const API_BASE = apiUrl("/backend-online-enrollment/student");
 
 export default function StudentLogin({ onLoginSuccess, onGoRegister }) {
   const [form, setForm] = useState({ identifier: "", password: "" });

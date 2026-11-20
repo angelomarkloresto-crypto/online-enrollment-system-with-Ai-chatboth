@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import { apiUrl } from "../../config";
 import { AnimatePresence, motion } from "framer-motion";
 
 
-const API_BASE = "/backend-online-enrollment/staff";
+const API_BASE = apiUrl("/backend-online-enrollment/staff");
 
 export default function EnrollmentManagement({ onSessionExpired }) {
   const [enrollments, setEnrollments] = useState([]);
@@ -861,8 +862,7 @@ function DocRow({ label, path, enrollmentId, fileType }) {
 
   const uploaded = Boolean(path && String(path).trim() !== "");
 
-  // URL goes through Vite proxy: /staff/view_file.php → XAMPP
-  const url = `/backend-online-enrollment/staff/view_file.php?enrollment_id=${enrollmentId}&file=${fileType}`;
+  const url = apiUrl(`/backend-online-enrollment/staff/view_file.php?enrollment_id=${enrollmentId}&file=${fileType}`);
 
   if (!uploaded) {
     return (

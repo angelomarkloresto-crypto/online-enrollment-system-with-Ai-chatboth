@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
+import { apiUrl } from "../../config";
 
-const API_BASE = "/backend-online-enrollment/staff";
+const API_BASE = apiUrl("/backend-online-enrollment/staff");
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MAX_SUBJECTS = 20;
 const MIN_REASONABLE_PERIOD_MINUTES = 15;

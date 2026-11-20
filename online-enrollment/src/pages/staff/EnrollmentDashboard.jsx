@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { apiUrl } from "../../config";
 import { motion } from "framer-motion";
 import {
   AreaChart,
@@ -191,7 +192,7 @@ export default function EnrollmentDashboard({ data = null }) {
     async function loadDashboard() {
       try {
         setLoadError(null);
-        const res = await fetch("/backend-online-enrollment/staff/get_staff_dashboard_summary.php", {
+        const res = await fetch(apiUrl("/backend-online-enrollment/staff/get_staff_dashboard_summary.php"), {
           credentials: "include",
         });
         const payload = await res.json();

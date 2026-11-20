@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { apiUrl } from "../../config";
 import { motion } from "framer-motion";
 import { normalizePhilippineMobileNumber } from "../../utils/studentPhone";
 import {
@@ -11,9 +12,9 @@ import Hirumi from "../AI assistant/Hirumi";
 
 
 
-const API_BASE     = "/backend-online-enrollment/student";
-const OCR_BASE     = "/backend-online-enrollment/ocr";
-const STAFF_BASE   = "/backend-online-enrollment/staff";
+const API_BASE     = apiUrl("/backend-online-enrollment/student");
+const OCR_BASE     = apiUrl("/backend-online-enrollment/ocr");
+const STAFF_BASE   = apiUrl("/backend-online-enrollment/staff");
 
 const REGISTRATION_STEPS = [
   { label: "Personal",  desc: "Basic information" },

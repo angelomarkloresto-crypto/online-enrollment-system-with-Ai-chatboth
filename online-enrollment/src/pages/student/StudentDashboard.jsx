@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
+import { apiUrl } from "../../config";
 import { motion } from "framer-motion";
 
-const API_BASE_NOTIFICATIONS = "/backend-online-enrollment/student";
+const API_BASE_NOTIFICATIONS = apiUrl("/backend-online-enrollment/student");
 
 const NOTIFICATION_STYLES = {
   success: {

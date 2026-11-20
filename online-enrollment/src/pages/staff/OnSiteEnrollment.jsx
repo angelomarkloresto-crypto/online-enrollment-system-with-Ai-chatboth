@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { apiUrl } from "../../config";
 import {
   EMPTY_LEARNER_DISCLOSURES,
   enrollmentDisclosurePayload,
@@ -6,7 +7,7 @@ import {
 } from "../../utils/learnerDisclosures";
 import LearnerDisclosureFields from "../../components/LearnerDisclosureFields";
 
-const API_BASE = "/backend-online-enrollment/staff";
+const API_BASE = apiUrl("/backend-online-enrollment/staff");
 const BASE_INPUT =
   "mt-1.5 w-full rounded-lg border border-[#CBD9C8] bg-white px-3 py-2.5 text-sm text-[#1B5E2C] outline-none focus:border-[#1B5E2C] focus:ring-1 focus:ring-[#1B5E2C]";
 const STUDENT_GRADES = {

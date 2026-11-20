@@ -1,10 +1,11 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { apiUrl } from "../../config";
 
 function AdminLayout(){
     const navigate = useNavigate();
     const logout = async () => {
         try {
-            await fetch("http://localhost/backend-online-enrollment/admin/admin_logout.php", {
+            await fetch(apiUrl("/backend-online-enrollment/admin/admin_logout.php"), {
                 credentials: "include",
             });
         } catch (error) {

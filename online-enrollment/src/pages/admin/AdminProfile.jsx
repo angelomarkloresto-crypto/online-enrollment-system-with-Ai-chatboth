@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from "../../config";
 
 
-const API_BASE = "http://localhost/backend-online-enrollment/admin";
+const API_BASE = apiUrl("/backend-online-enrollment/admin");
 // export const getApiBase = () => {
-//   return "http://localhost/backend-online-enrollment/admin";
 // };
 
 export default function AdminProfile({ adminId }) {
