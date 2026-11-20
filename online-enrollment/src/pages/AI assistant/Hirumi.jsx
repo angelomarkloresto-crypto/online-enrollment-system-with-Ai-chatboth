@@ -228,7 +228,7 @@ export default function Hirumi({ role = "admin", userId = "", publicAccess = fal
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        ...(publicAccess ? { credentials: "omit" } : {}),
+        credentials: publicAccess ? "omit" : "include",
       });
 
       const raw = await response.text();
