@@ -16,6 +16,35 @@ const API_BASE     = apiUrl("/backend-online-enrollment/student");
 const OCR_BASE     = apiUrl("/backend-online-enrollment/ocr");
 const STAFF_BASE   = apiUrl("/backend-online-enrollment/staff");
 
+const OCR_HTTP_ERRORS = {
+  400: "The report card could not be validated. Check the file and try again.",
+  401: "The upload session could not be verified. Please upload the report card again.",
+  404: "The uploaded report card could not be found. Please upload it again.",
+  500: "The OCR service encountered an error. Please try again later.",
+};
+
+function getOcrErrorMessage(response, data, fallback) {
+  const message = typeof data?.message === "string" ? data.message.trim() : "";
+  if (message && !/student\s+login(?:\s+is)?\s+required/i.test(message)) {
+    return message;
+  }
+  return OCR_HTTP_ERRORS[response.status] ?? fallback;
+}
+
+async function readOcrResponse(response, fallback) {
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    // Non-JSON error responses use the status-specific message below.
+  }
+
+  if (!response.ok || !data?.success) {
+    throw new Error(getOcrErrorMessage(response, data, fallback));
+  }
+  return data;
+}
+
 const REGISTRATION_STEPS = [
   { label: "Personal",  desc: "Basic information" },
   { label: "Address",   desc: "Home address" },
@@ -488,8 +517,10 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
     const res = await fetch(`${OCR_BASE}/scan_report_card.php`, {
       method: "POST", credentials: "include", body,
     });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message ?? "Upload failed.");
+    const data = await readOcrResponse(res, "Could not upload the report card.");
+    if (typeof data.filename !== "string" || !data.filename) {
+      throw new Error("The upload response did not include a filename. Please try again.");
+    }
     return data.filename;
   }
 
@@ -503,13 +534,7 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ filename }),
     })
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok || !data.success) {
-          throw new Error(data.message ?? "Could not process this document.");
-        }
-        return data;
-      })
+      .then((response) => readOcrResponse(response, "Could not process this document."))
       .catch((error) => {
         ocrRequestsRef.current.delete(filename);
         throw error;
