@@ -14,7 +14,7 @@ import Hirumi from "../AI assistant/Hirumi";
 
 const API_BASE     = apiUrl("/backend-online-enrollment/student");
 const OCR_BASE     = apiUrl("/backend-online-enrollment/ocr");
-const STAFF_BASE   = apiUrl("/backend-online-enrollment/staff");
+const STRANDS_API  = apiUrl("/backend-online-enrollment/public/get_active_strands.php");
 
 const OCR_HTTP_ERRORS = {
   400: "The report card could not be validated. Check the file and try again.",
@@ -249,6 +249,8 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
 
   // Enrollment state
   const [strands, setStrands] = useState([]);
+  const [strandsLoading, setStrandsLoading] = useState(true);
+  const [strandsError, setStrandsError] = useState("");
   const [activePeriods, setActivePeriods] = useState([]);
   const [periodsLoading, setPeriodsLoading] = useState(true);
   const [periodsError, setPeriodsError] = useState("");
@@ -302,7 +304,31 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
   );
   const selectedEnrollmentPeriod = matchingPeriods.length === 1 ? matchingPeriods[0] : null;
 
-  useEffect(() => { fetchStrands(); }, []);
+  useEffect(() => {
+    let active = true;
+    async function fetchStrands() {
+      setStrandsLoading(true);
+      setStrandsError("");
+      try {
+        const response = await fetch(STRANDS_API);
+        const data = await response.json();
+        if (!response.ok || !data.success || !Array.isArray(data.strands)) {
+          throw new Error("Strands could not be loaded.");
+        }
+        if (active) setStrands(data.strands);
+      } catch {
+        if (active) {
+          setStrands([]);
+          setStrandsError("Strands could not be loaded. Please try again later.");
+        }
+      } finally {
+        if (active) setStrandsLoading(false);
+      }
+    }
+
+    fetchStrands();
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -333,14 +359,6 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
     fetchActivePeriods();
     return () => { active = false; };
   }, [periodsReload]);
-
-  async function fetchStrands() {
-    try {
-      const res = await fetch(`${STAFF_BASE}/get_strand.php`, { credentials: "include" });
-      const data = await res.json();
-      if (data.success) setStrands(data.strands ?? []);
-    } catch { /* silently ignore */ }
-  }
 
   function handleRegChange(e) {
     const { name, value } = e.target;
@@ -1227,6 +1245,8 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
                 semesterValue={regForm.semester}
                 strandValue={regForm.strand_id}
                 strands={strands}
+                strandsLoading={strandsLoading}
+                strandsError={strandsError}
                 setEnrollInfo={setRegForm}
                 setErrors={setEnrollErrors}
               />
@@ -1356,7 +1376,7 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
   );
 }
 
-function StudentTypeChoice({ selected, currentLevel, onSelect, error, gradeValue, semesterValue, strandValue, strands, setEnrollInfo, setErrors, gradeError, strandError }) {
+function StudentTypeChoice({ selected, currentLevel, onSelect, error, gradeValue, semesterValue, strandValue, strands, strandsLoading, strandsError, setEnrollInfo, setErrors, gradeError, strandError }) {
   const schoolLevel = currentLevel ?? "JHS";
   const gradeOptions = getGradeOptionsForSelection(selected, schoolLevel);
   const isSHS = schoolLevel === "SHS";
@@ -1449,8 +1469,12 @@ function StudentTypeChoice({ selected, currentLevel, onSelect, error, gradeValue
       {isSHS && selected && (
         <div>
           <label className="block text-sm font-medium text-[#0B2B26] mb-2">Strand *</label>
-          {strands.length === 0 ? (
+          {strandsError ? (
+            <p role="alert" className="text-sm text-[#B3492B]">{strandsError}</p>
+          ) : strandsLoading ? (
             <p className="text-sm text-[#0B2B26]/45">Loading strands…</p>
+          ) : strands.length === 0 ? (
+            <p className="text-sm text-[#B3492B]">No active strands are currently available.</p>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {strands.map((s) => (
