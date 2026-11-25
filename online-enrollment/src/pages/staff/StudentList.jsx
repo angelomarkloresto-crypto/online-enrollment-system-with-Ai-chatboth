@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { apiUrl } from "../../config";
 
 const API_BASE = apiUrl("/backend-online-enrollment/staff");
@@ -22,6 +23,8 @@ function periodCoverageLabel(period) {
 }
 
 export default function StudentList({ onSessionExpired }) {
+  const location = useLocation();
+  const onSiteEnrollmentSuccess = location.state?.onSiteEnrollmentSuccess;
   const [periods, setPeriods] = useState([]);
   const [students, setStudents] = useState([]);
   const [recordsWithoutPeriod, setRecordsWithoutPeriod] = useState(0);
@@ -347,6 +350,12 @@ export default function StudentList({ onSessionExpired }) {
         <p role="status" className="rounded-xl border border-[#8C6B12]/30 bg-[#FBF0DA] px-4 py-3 text-sm text-[#765B12]">
           {recordsWithoutPeriod} enrollment record{recordsWithoutPeriod === 1 ? "" : "s"} have no associated enrollment period.
           They are not placed into a school-year group because their period cannot be verified.
+        </p>
+      )}
+
+      {onSiteEnrollmentSuccess && (
+        <p role="status" className="rounded-xl border border-[#1B5E2C]/30 bg-[#1B5E2C]/10 px-4 py-3 text-sm text-[#1B5E2C]">
+          On-Site enrollment for LRN {onSiteEnrollmentSuccess.lrn} was saved and approved for Grade {onSiteEnrollmentSuccess.grade_level}. Student enrollment records are loading below.
         </p>
       )}
 

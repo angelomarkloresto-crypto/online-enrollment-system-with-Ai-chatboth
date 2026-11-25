@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiUrl } from "../../config";
 import {
   EMPTY_LEARNER_DISCLOSURES,
-  enrollmentDisclosurePayload,
   validateLearnerDisclosures,
 } from "../../utils/learnerDisclosures";
+import {
+  buildOnSiteEnrollmentPayload,
+  interpretOnSiteEnrollmentResponse,
+  isNewOnSiteAccountValidationResponse,
+  isValidOnSiteStrandSelection,
+  validateOnSiteAccountFields,
+} from "../../utils/onSiteEnrollment";
 import LearnerDisclosureFields from "../../components/LearnerDisclosureFields";
 
 const API_BASE = apiUrl("/backend-online-enrollment/staff");
+const STRANDS_API = apiUrl("/backend-online-enrollment/public/get_active_strands.php");
 const BASE_INPUT =
   "mt-1.5 w-full rounded-lg border border-[#CBD9C8] bg-white px-3 py-2.5 text-sm text-[#1B5E2C] outline-none focus:border-[#1B5E2C] focus:ring-1 focus:ring-[#1B5E2C]";
 const STUDENT_GRADES = {
@@ -15,6 +23,11 @@ const STUDENT_GRADES = {
   Old: ["8", "9", "10", "12"],
   Returning: ["7", "8", "9", "10", "11", "12"],
 };
+const CHECKLIST_FIELDS = [
+  "report_card_front_received",
+  "report_card_back_received",
+  "psa_birth_certificate_received",
+];
 
 function calculateAge(value) {
   if (!value) return "";
@@ -29,21 +42,8 @@ function calculateAge(value) {
   return age >= 0 ? String(age) : "";
 }
 
-function isValidPhone(value) {
-  return /^(?:09\d{9}|\+639\d{9})$/.test(value.trim().replace(/[\s()-]/g, ""));
-}
-
-function isValidEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim());
-}
-
-export default function OnSiteEnrollment() {
-  const [grades, setGrades] = useState([]);
-  const [sections, setSections] = useState([]);
-  const [gradesLoading, setGradesLoading] = useState(true);
-  const [sectionsLoading, setSectionsLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
-  const [form, setForm] = useState({
+function createInitialForm() {
+  return {
     lrn: "",
     first_name: "",
     middle_name: "",
@@ -57,23 +57,35 @@ export default function OnSiteEnrollment() {
     ...EMPTY_LEARNER_DISCLOSURES,
     student_type: "New",
     grade_level: "",
-    section_id: "",
+    strand_id: "",
     average_grade: "",
     report_card_front_received: false,
     report_card_back_received: false,
     psa_birth_certificate_received: false,
     good_moral_received: false,
-  });
+  };
+}
+
+export default function OnSiteEnrollment() {
+  const navigate = useNavigate();
+  const [grades, setGrades] = useState([]);
+  const [strands, setStrands] = useState([]);
+  const [gradesLoading, setGradesLoading] = useState(true);
+  const [strandsLoading, setStrandsLoading] = useState(false);
+  const [strandsError, setStrandsError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [form, setForm] = useState(createInitialForm);
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [accountCreationRequired, setAccountCreationRequired] = useState(false);
   const submittingRef = useRef(false);
 
   const allowedGrades = useMemo(
     () => grades.filter((grade) => STUDENT_GRADES[form.student_type]?.includes(String(grade))),
     [grades, form.student_type],
   );
-  const gradeSeven = String(form.grade_level) === "7";
+  const isSHS = Number(form.grade_level) >= 11;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -102,39 +114,36 @@ export default function OnSiteEnrollment() {
   }, []);
 
   useEffect(() => {
-    if (!form.grade_level) {
-      setSections([]);
+    if (!isSHS) {
+      setStrands([]);
+      setStrandsError("");
+      setStrandsLoading(false);
       return undefined;
     }
+
     const controller = new AbortController();
-    async function loadSections() {
-      setSectionsLoading(true);
-      setLoadError("");
+    async function loadStrands() {
+      setStrandsLoading(true);
+      setStrandsError("");
       try {
-        const params = new URLSearchParams({ grade_level: form.grade_level });
-        const response = await fetch(`${API_BASE}/get_on_site_sections.php?${params}`, {
-          credentials: "include",
-          signal: controller.signal,
-        });
+        const response = await fetch(STRANDS_API, { signal: controller.signal });
         const data = await response.json();
-        if (!response.ok || !data.success) {
-          setSections([]);
-          setLoadError(data.message ?? "Could not load sections for this grade.");
-          return;
+        if (!response.ok || !data.success || !Array.isArray(data.strands)) {
+          throw new Error(data.message ?? "Could not load active SHS strands.");
         }
-        setSections(data.sections ?? []);
+        setStrands(data.strands);
       } catch (error) {
         if (error.name !== "AbortError") {
-          setSections([]);
-          setLoadError("Could not reach the server to load sections.");
+          setStrands([]);
+          setStrandsError(error.message ?? "Could not load active SHS strands.");
         }
       } finally {
-        if (!controller.signal.aborted) setSectionsLoading(false);
+        if (!controller.signal.aborted) setStrandsLoading(false);
       }
     }
-    loadSections();
+    loadStrands();
     return () => controller.abort();
-  }, [form.grade_level]);
+  }, [isSHS]);
 
   function changeField(event) {
     const { name, value, type, checked } = event.target;
@@ -143,12 +152,25 @@ export default function OnSiteEnrollment() {
       if (name === "date_of_birth") next.age = calculateAge(value);
       if (name === "student_type" && !STUDENT_GRADES[value]?.includes(String(current.grade_level))) {
         next.grade_level = "";
-        next.section_id = "";
+        next.strand_id = "";
       }
-      if (name === "grade_level") next.section_id = "";
+      if (name === "grade_level") next.strand_id = "";
       return next;
     });
-    setErrors((current) => ({ ...current, [name]: undefined }));
+    setErrors((current) => ({
+      ...current,
+      [name]: undefined,
+      ...(name === "date_of_birth" ? { age: undefined } : {}),
+      ...(name === "lrn" ? {
+        first_name: undefined,
+        last_name: undefined,
+        date_of_birth: undefined,
+        sex: undefined,
+        age: undefined,
+        cellphone_no: undefined,
+      } : {}),
+    }));
+    if (name === "lrn") setAccountCreationRequired(false);
     setNotice(null);
   }
 
@@ -163,26 +185,22 @@ export default function OnSiteEnrollment() {
     setNotice(null);
   }
 
-  function validate() {
+  function validate(requireAccountFields = accountCreationRequired) {
     const next = {};
     if (!form.lrn.trim()) next.lrn = "Enter the student's LRN.";
-    if (form.cellphone_no.trim() && !isValidPhone(form.cellphone_no)) {
-      next.cellphone_no = "Enter a valid PH mobile number (09XXXXXXXXX or +639XXXXXXXXX).";
+    Object.assign(next, validateOnSiteAccountFields(form, requireAccountFields));
+    if (!["New", "Old", "Returning"].includes(form.student_type)) next.student_type = "Select the student's type.";
+    if (!form.grade_level || !allowedGrades.includes(String(form.grade_level))) {
+      next.grade_level = "Select an available grade level for this student type.";
     }
-    if (form.email.trim() && !isValidEmail(form.email)) next.email = "Enter a valid email address or leave this field blank.";
-    if (!form.student_type) next.student_type = "Select the student's type.";
-    if (!form.grade_level) next.grade_level = "Select a grade level.";
-    if (!form.section_id) next.section_id = "Select a section.";
+    if (!isValidOnSiteStrandSelection(form.grade_level, strands, form.strand_id)) {
+      next.strand_id = "Select an active strand for Senior High School.";
+    }
     if (form.average_grade === "" || !Number.isFinite(Number(form.average_grade)) || Number(form.average_grade) < 60 || Number(form.average_grade) > 100) {
       next.average_grade = "Enter an average from 60 to 100.";
     }
-    if (!form.report_card_front_received) next.report_card_front_received = "Confirm the report card front was received.";
-    if (!form.report_card_back_received) next.report_card_back_received = "Confirm the report card back was received.";
-    if (gradeSeven && !form.psa_birth_certificate_received) {
-      next.psa_birth_certificate_received = "Confirm the PSA/Birth Certificate was received for Grade 7.";
-    }
-    if (gradeSeven && !form.good_moral_received) {
-      next.good_moral_received = "Confirm the Good Moral Certificate was received for Grade 7.";
+    for (const field of CHECKLIST_FIELDS) {
+      if (!form[field]) next[field] = "Confirm this required document was received.";
     }
     Object.assign(next, validateLearnerDisclosures(form));
     setErrors(next);
@@ -197,63 +215,53 @@ export default function OnSiteEnrollment() {
     setSubmitting(true);
     setNotice(null);
     try {
-      const payload = {
-        ...form,
-        ...enrollmentDisclosurePayload(form),
-        lrn: form.lrn.trim(),
-        first_name: form.first_name.trim(),
-        middle_name: form.middle_name.trim(),
-        last_name: form.last_name.trim(),
-        extension_name: form.extension_name.trim(),
-        cellphone_no: form.cellphone_no.trim().replace(/[\s()-]/g, ""),
-        grade_level: Number(form.grade_level),
-        section_id: Number(form.section_id),
-        age: Number(form.age),
-        average_grade: Number(form.average_grade),
-        password: form.lrn.trim(),
-      };
-      if (!form.email.trim()) delete payload.email;
+      const payload = buildOnSiteEnrollmentPayload(form);
       const response = await fetch(`${API_BASE}/create_on_site_enrollment.php`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        setNotice({ type: "error", text: data.message ?? "Could not save this on-site enrollment." });
+      let data = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+      const result = interpretOnSiteEnrollmentResponse(
+        response.status,
+        data,
+        payload.lrn,
+      );
+      if (!result.success) {
+        if (isNewOnSiteAccountValidationResponse(response.status, data)) {
+          setAccountCreationRequired(true);
+          validate(true);
+          setNotice({
+            type: "error",
+            text: "This LRN has no existing student account. Complete or correct the required account details, then submit again.",
+          });
+          return;
+        }
+        setNotice({ type: "error", text: result.message });
         return;
       }
-      setNotice({
-        type: "success",
-        text: `${data.message ?? "On-site enrollment recorded."} Status: ${data.enrollment_status ?? "Pending"}.`,
+
+      navigate("/staff/student-list", {
+        state: {
+          onSiteEnrollmentSuccess: {
+            lrn: result.lrn,
+            grade_level: Number(form.grade_level),
+            enrollment_status: "Approved",
+          },
+        },
       });
-      setForm((current) => ({
-        ...current,
-        lrn: "",
-        first_name: "",
-        middle_name: "",
-        last_name: "",
-        extension_name: "",
-        date_of_birth: "",
-        age: "",
-        sex: "",
-        cellphone_no: "",
-        email: "",
-        ...EMPTY_LEARNER_DISCLOSURES,
-        student_type: "New",
-        grade_level: "",
-        section_id: "",
-        average_grade: "",
-        report_card_front_received: false,
-        report_card_back_received: false,
-        psa_birth_certificate_received: false,
-        good_moral_received: false,
-      }));
-      setSections([]);
-      setErrors({});
     } catch {
-      setNotice({ type: "error", text: "Could not reach the server. Please try again." });
+      setNotice({
+        type: "error",
+        text: "The server could not confirm the On-Site enrollment. Please verify the student record before retrying.",
+      });
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -276,26 +284,31 @@ export default function OnSiteEnrollment() {
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
         <section className="rounded-2xl border border-[#D9E8D5] bg-white p-4 sm:p-5">
           <h3 className="mb-1 text-base font-semibold text-[#1B5E2C]">Student information</h3>
-          <p className="mb-4 text-sm text-[#86A18A]">For an existing LRN, these account fields may be left blank. Complete them when registering a new student.</p>
+          <p className="mb-4 text-sm text-[#86A18A]">
+            {accountCreationRequired
+              ? "This LRN was not found as an existing student account. Complete the required account details; the initial password will be the LRN."
+              : "For an existing LRN, account fields may be left blank. If no account exists, the server will identify that and request the required details; the initial password will be the LRN."}
+          </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <FormField label="LRN *" name="lrn" value={form.lrn} onChange={changeField} error={errors.lrn} maxLength={12} />
-            <FormField label="First name (new student)" name="first_name" value={form.first_name} onChange={changeField} error={errors.first_name} />
-            <FormField label="Middle name" name="middle_name" value={form.middle_name} onChange={changeField} />
-            <FormField label="Last name (new student)" name="last_name" value={form.last_name} onChange={changeField} error={errors.last_name} />
-            <FormField label="Suffix" name="extension_name" value={form.extension_name} onChange={changeField} placeholder="Jr., Sr., II..." />
-            <FormField label="Phone number (new student)" name="cellphone_no" type="tel" value={form.cellphone_no} onChange={changeField} error={errors.cellphone_no} placeholder="09XXXXXXXXX or +639XXXXXXXXX" />
+            <FormField label={`First name${accountCreationRequired ? " *" : " (new student)"}`} name="first_name" value={form.first_name} onChange={changeField} error={errors.first_name} />
+            <FormField label="Middle name" name="middle_name" value={form.middle_name} onChange={changeField} error={errors.middle_name} />
+            <FormField label={`Last name${accountCreationRequired ? " *" : " (new student)"}`} name="last_name" value={form.last_name} onChange={changeField} error={errors.last_name} />
+            <FormField label="Suffix" name="extension_name" value={form.extension_name} onChange={changeField} error={errors.extension_name} placeholder="Jr., Sr., II..." />
+            <FormField label={`Phone number${accountCreationRequired ? " *" : " (new student)"}`} name="cellphone_no" type="tel" value={form.cellphone_no} onChange={changeField} error={errors.cellphone_no} placeholder="09XXXXXXXXX or +639XXXXXXXXX" />
             <FormField label="Email (optional)" name="email" type="email" value={form.email} onChange={changeField} error={errors.email} placeholder="student@example.com" />
             <label className="block text-sm font-medium text-[#1B5E2C]">
-              Date of birth (new student)
+              Date of birth{accountCreationRequired ? " *" : " (new student)"}
               <input className={BASE_INPUT} type="date" name="date_of_birth" value={form.date_of_birth} onChange={changeField} />
               {errors.date_of_birth && <FieldError>{errors.date_of_birth}</FieldError>}
             </label>
             <label className="block text-sm font-medium text-[#1B5E2C]">
-              Age
+              Age{accountCreationRequired ? " *" : " (new student)"}
               <input className={`${BASE_INPUT} bg-[#FAFAF5]`} value={form.age} readOnly aria-readonly="true" />
+              {errors.age && <FieldError>{errors.age}</FieldError>}
             </label>
             <label className="block text-sm font-medium text-[#1B5E2C]">
-              Sex (new student)
+              Sex{accountCreationRequired ? " *" : " (new student)"}
               <select className={BASE_INPUT} name="sex" value={form.sex} onChange={changeField}>
                 <option value="">Select sex</option>
                 <option value="Male">Male</option>
@@ -316,7 +329,7 @@ export default function OnSiteEnrollment() {
 
         <section className="rounded-2xl border border-[#D9E8D5] bg-white p-4 sm:p-5">
           <h3 className="mb-4 text-base font-semibold text-[#1B5E2C]">Enrollment details</h3>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <SelectField label="Student type *" name="student_type" value={form.student_type} onChange={changeField} error={errors.student_type}>
               {Object.keys(STUDENT_GRADES).map((type) => <option key={type} value={type}>{type}</option>)}
             </SelectField>
@@ -324,14 +337,15 @@ export default function OnSiteEnrollment() {
               <option value="">{gradesLoading ? "Loading grades…" : "Select grade"}</option>
               {allowedGrades.map((grade) => <option key={grade} value={grade}>Grade {grade}</option>)}
             </SelectField>
-            <SelectField label="Section *" name="section_id" value={form.section_id} onChange={changeField} error={errors.section_id} disabled={!form.grade_level || sectionsLoading}>
-              <option value="">{sectionsLoading ? "Loading sections…" : "Select section"}</option>
-              {sections.map((section) => (
-                <option key={section.section_id} value={section.section_id}>
-                  {section.section_name}
-                </option>
-              ))}
-            </SelectField>
+            {isSHS && (
+              <SelectField label="Active strand *" name="strand_id" value={form.strand_id} onChange={changeField} error={errors.strand_id} disabled={strandsLoading || Boolean(strandsError)}>
+                <option value="">{strandsLoading ? "Loading strands…" : "Select strand"}</option>
+                {strands.map((strand) => (
+                  <option key={strand.strand_id} value={strand.strand_id}>{strand.strand_name}</option>
+                ))}
+              </SelectField>
+            )}
+            {isSHS && strandsError && <p role="alert" className="text-sm text-[#B3492B]">{strandsError}</p>}
             <FormField label="Average grade *" name="average_grade" type="number" min="60" max="100" step="0.01" value={form.average_grade} onChange={changeField} error={errors.average_grade} />
           </div>
         </section>
@@ -339,18 +353,18 @@ export default function OnSiteEnrollment() {
         <section className="rounded-2xl border border-[#D9E8D5] bg-white p-4 sm:p-5">
           <h3 className="text-base font-semibold text-[#1B5E2C]">Physical document checklist</h3>
           <p className="mb-4 mt-1 text-sm text-[#86A18A]">
-            Mark each item only after staff has physically received it. PSA/Birth Certificate and Good Moral are required for Grade 7.
+            Mark each item only after staff has physically received it. Report card front and back and PSA/Birth Certificate are required; Good Moral is optional.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <DocumentCheckbox label="Report Card Front *" name="report_card_front_received" checked={form.report_card_front_received} onChange={changeField} error={errors.report_card_front_received} />
             <DocumentCheckbox label="Report Card Back *" name="report_card_back_received" checked={form.report_card_back_received} onChange={changeField} error={errors.report_card_back_received} />
-            <DocumentCheckbox label={`PSA/Birth Certificate${gradeSeven ? " *" : " (Grade 7)"}`} name="psa_birth_certificate_received" checked={form.psa_birth_certificate_received} onChange={changeField} error={errors.psa_birth_certificate_received} />
-            <DocumentCheckbox label={`Good Moral Certificate${gradeSeven ? " *" : " (Grade 7)"}`} name="good_moral_received" checked={form.good_moral_received} onChange={changeField} error={errors.good_moral_received} />
+            <DocumentCheckbox label="PSA/Birth Certificate *" name="psa_birth_certificate_received" checked={form.psa_birth_certificate_received} onChange={changeField} error={errors.psa_birth_certificate_received} />
+            <DocumentCheckbox label="Good Moral Certificate (optional)" name="good_moral_received" checked={form.good_moral_received} onChange={changeField} error={errors.good_moral_received} />
           </div>
         </section>
 
         <div className="flex justify-end">
-          <button type="submit" disabled={submitting} className="rounded-lg bg-[#1B5E2C] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#164A22] disabled:cursor-not-allowed disabled:opacity-60">
+          <button type="submit" disabled={submitting || gradesLoading} className="rounded-lg bg-[#1B5E2C] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#164A22] disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? "Saving enrollment…" : "Save On-Site Enrollment"}
           </button>
         </div>
