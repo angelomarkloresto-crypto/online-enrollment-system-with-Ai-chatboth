@@ -119,9 +119,7 @@ function formatSchoolYear(schoolYear) {
   return String(schoolYear || "Unavailable").replace(/^(\d{4})-(\d{4})$/, "$1–$2");
 }
 
-// Backend (submit_enrollment.php) only hard-requires PSA Birth Certificate
-// and Good Moral when grade_level === "7". Old (continuing) students already
-// have these on file and must never be asked to resubmit them.
+// Continuing students already have supporting documents on file.
 function requiresGrade7Documents(studentType, gradeLevel) {
   if (studentType === "Old") return false;
   return studentType === "New" || String(gradeLevel) === "7";
@@ -432,7 +430,6 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
         errs.average = "Enter a valid average (60–100).";
       if (requiresGrade7Docs) {
         if (!psaName) errs.psa = "PSA Birth Certificate is required for first-time students.";
-        if (!goodMoralName) errs.goodMoral = "Good Moral is required for first-time students.";
       }
     }
     setEnrollErrors(errs);
@@ -1435,7 +1432,7 @@ function StudentTypeChoice({ selected, currentLevel, onSelect, error, gradeValue
 
       <div className="rounded-xl border border-[#315f20]/30 bg-[#f4f7ef] px-4 py-3 text-sm text-[#17350f]">
         {selected === "New"
-          ? "First-time enrollment requires four uploads: report card front and back, PSA Birth Certificate, and Good Moral Certificate."
+          ? "First-time enrollment requires report card front and back and a PSA Birth Certificate. Good Moral Certificate is optional."
           : selected === "Old"
           ? "Continuing students only need to upload the report card front and back."
           : "Upload the report card front and back. Additional documents depend on student type and grade level."}
@@ -1652,7 +1649,7 @@ function EnrollmentStepInfo({ enrollInfo, setEnrollInfo, strands, errors, setErr
 
       {needsRequirements && (
         <p className="text-xs text-[#163832] bg-[#8EB69B]/10 border border-[#8EB69B]/30 rounded-lg px-3 py-2">
-          You'll need to upload your requirements (PSA Birth Certificate and Good Moral) for Grade {enrollInfo.grade_level} enrollment.
+          A PSA Birth Certificate is required for this enrollment. Good Moral Certificate is optional.
         </p>
       )}
     </div>
@@ -1739,7 +1736,7 @@ function EnrollmentStepRequirements({ psaFile, psaName, psaOcrStatus, psaOcrMsg,
       <div className="rounded-xl border border-[#315f20]/30 bg-[#f4f7ef] p-3 text-xs text-[#17350f]">
         <span className="font-semibold">Note:</span> Upload JPG or PNG images only, max 10MB each.
         <span className="mt-1 block font-semibold">
-          First-time students must upload a PSA Birth Certificate and Good Moral Certificate.
+          Upload the required PSA Birth Certificate. Good Moral Certificate is optional.
         </span>
       </div>
 
@@ -1761,7 +1758,7 @@ function EnrollmentStepRequirements({ psaFile, psaName, psaOcrStatus, psaOcrMsg,
         )}
         {requiresGrade7Docs && (
           <div>
-            <ReqUpload label="Good Moral Certificate *" file={goodMoralFile} uploading={uploading.goodMoral} uploaded={!!goodMoralName} error={errors.goodMoral} onChange={onGoodMoralUpload} />
+            <ReqUpload label="Good Moral Certificate (optional)" file={goodMoralFile} uploading={uploading.goodMoral} uploaded={!!goodMoralName} error={errors.goodMoral} onChange={onGoodMoralUpload} />
             {goodMoralOcrStatus !== "idle" && (
               <p
                 role="status"

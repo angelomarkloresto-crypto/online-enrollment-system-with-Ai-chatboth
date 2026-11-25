@@ -12,7 +12,7 @@ import LearnerDisclosureFields from "../../components/LearnerDisclosureFields";
 
 const getOcrApiBase = () => apiUrl("/backend-online-enrollment/ocr");
 const getStudentApiBase = () => apiUrl("/backend-online-enrollment/student");
-const getApiBase = () => apiUrl("/backend-online-enrollment/student");
+const getPublicApiBase = () => apiUrl("/backend-online-enrollment/public");
 
 
 const SHS_GRADES = ["11","12"];
@@ -234,7 +234,7 @@ function EnrollmentWizard({ onBack, enrollmentPeriod, onChangePeriod }) {
       setStrandsLoading(true);
       setStrandsError("");
       try {
-        const res = await fetch(`${getApiBase()}/get_strand.php`, { credentials: "include" });
+        const res = await fetch(`${getPublicApiBase()}/get_active_strands.php`);
         const data = await res.json();
         if (!res.ok || !data.success) throw new Error(data.message || "Strands could not be loaded.");
         if (active) setStrands(Array.isArray(data.strands) ? data.strands : []);
@@ -366,7 +366,6 @@ function EnrollmentWizard({ onBack, enrollmentPeriod, onChangePeriod }) {
   function validateRequirements() {
     const errs = {};
     if (!psaName)       errs.psa       = "PSA Birth Certificate is required.";
-    if (!goodMoralName) errs.goodMoral = "Good Moral is required.";
     setReqErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -563,7 +562,7 @@ function EnrollmentWizard({ onBack, enrollmentPeriod, onChangePeriod }) {
 
               {needsRequirements && (
                 <p className="text-xs text-[#163832] bg-[#8EB69B]/10 border border-[#8EB69B]/30 rounded-lg px-3 py-2">
-                  Grade 7 enrollment requires a PSA Birth Certificate and Good Moral Certificate, in addition to your report card.
+                  A PSA Birth Certificate is required for this enrollment. Good Moral Certificate is optional.
                 </p>
               )}
 
@@ -688,7 +687,7 @@ function EnrollmentWizard({ onBack, enrollmentPeriod, onChangePeriod }) {
               <div className="bg-[#DAF1DE]/40 rounded-xl border border-[#235347]/15 p-3 text-xs text-[#0B2B26]/70">
                 <span className="font-medium text-[#0B2B26]">Note:</span> Upload JPG or PNG images only, max 10MB each.
                 <span className="block mt-1 text-[#163832] font-medium">
-                  PSA Birth Certificate and Good Moral are required for Grade 7 enrollment.
+                  PSA Birth Certificate is required for this enrollment. Good Moral Certificate is optional.
                 </span>
               </div>
 
@@ -706,7 +705,7 @@ function EnrollmentWizard({ onBack, enrollmentPeriod, onChangePeriod }) {
 
               {/* Good Moral */}
               <ReqUpload
-                label="Good Moral Certificate *"
+                label="Good Moral Certificate (optional)"
                 file={goodMoralFile}
                 uploading={uploading.goodMoral}
                 uploaded={!!goodMoralName}
