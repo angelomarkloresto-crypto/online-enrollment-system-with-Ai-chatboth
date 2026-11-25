@@ -16,6 +16,7 @@ import LearnerDisclosureFields from "../../components/LearnerDisclosureFields";
 
 const API_BASE = apiUrl("/backend-online-enrollment/staff");
 const STRANDS_API = apiUrl("/backend-online-enrollment/public/get_active_strands.php");
+const PERIOD_API = `${API_BASE}/get_on_site_enrollment_period.php`;
 const BASE_INPUT =
   "mt-1.5 w-full rounded-lg border border-[#CBD9C8] bg-white px-3 py-2.5 text-sm text-[#1B5E2C] outline-none focus:border-[#1B5E2C] focus:ring-1 focus:ring-[#1B5E2C]";
 const STUDENT_GRADES = {
@@ -74,6 +75,9 @@ export default function OnSiteEnrollment() {
   const [strandsLoading, setStrandsLoading] = useState(false);
   const [strandsError, setStrandsError] = useState("");
   const [loadError, setLoadError] = useState("");
+  const [periods, setPeriods] = useState([]);
+  const [periodsLoading, setPeriodsLoading] = useState(true);
+  const [periodsError, setPeriodsError] = useState("");
   const [form, setForm] = useState(createInitialForm);
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState(null);
@@ -110,6 +114,34 @@ export default function OnSiteEnrollment() {
       }
     }
     loadGrades();
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadPeriods() {
+      setPeriodsLoading(true);
+      setPeriodsError("");
+      try {
+        const response = await fetch(PERIOD_API, {
+          credentials: "include",
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.message ?? "Could not load enrollment periods.");
+        }
+        setPeriods(Array.isArray(data.periods) ? data.periods : []);
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          setPeriods([]);
+          setPeriodsError(error.message ?? "Could not load enrollment periods.");
+        }
+      } finally {
+        if (!controller.signal.aborted) setPeriodsLoading(false);
+      }
+    }
+    loadPeriods();
     return () => controller.abort();
   }, []);
 
@@ -209,6 +241,14 @@ export default function OnSiteEnrollment() {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (periodsLoading) return;
+    if (periods.length === 0) {
+      setNotice({
+        type: "error",
+        text: periodsError || "There is no open enrollment period. On-Site enrollment cannot be saved.",
+      });
+      return;
+    }
     if (submittingRef.current || !validate()) return;
 
     submittingRef.current = true;
@@ -254,6 +294,8 @@ export default function OnSiteEnrollment() {
             lrn: result.lrn,
             grade_level: Number(form.grade_level),
             enrollment_status: "Approved",
+            school_year: result.schoolYear,
+            semester: result.semester,
           },
         },
       });
@@ -280,6 +322,28 @@ export default function OnSiteEnrollment() {
 
       {notice && <Notice notice={notice} />}
       {loadError && <p role="alert" className="rounded-lg border border-[#B3492B]/30 bg-[#B3492B]/10 px-4 py-3 text-sm text-[#B3492B]">{loadError}</p>}
+      <section className="rounded-2xl border border-[#D9E8D5] bg-white p-4 sm:p-5">
+        <h3 className="text-base font-semibold text-[#1B5E2C]">Active enrollment period</h3>
+        {periodsLoading ? (
+          <p className="mt-2 text-sm text-[#86A18A]">Checking enrollment periods…</p>
+        ) : periodsError ? (
+          <p role="alert" className="mt-2 text-sm text-[#B3492B]">{periodsError}</p>
+        ) : periods.length === 0 ? (
+          <p role="alert" className="mt-2 text-sm text-[#B3492B]">Enrollment is closed. No active enrollment period is available for On-Site enrollment.</p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {periods.map((period) => (
+              <div key={period.enrollment_period_id} className="flex flex-col gap-1 rounded-lg border border-[#D9E8D5] bg-[#FAFAF5] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <p className="font-semibold text-[#1B5E2C]">{period.school_year}</p>
+                <p className="text-sm text-[#86A18A]">
+                  {period.coverage === "shs_second_semester" ? "Senior High School · 2nd Semester" : "All Grade Levels"}
+                  {period.semester ? ` · ${period.semester}` : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
         <section className="rounded-2xl border border-[#D9E8D5] bg-white p-4 sm:p-5">
@@ -364,7 +428,7 @@ export default function OnSiteEnrollment() {
         </section>
 
         <div className="flex justify-end">
-          <button type="submit" disabled={submitting || gradesLoading} className="rounded-lg bg-[#1B5E2C] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#164A22] disabled:cursor-not-allowed disabled:opacity-60">
+          <button type="submit" disabled={submitting || gradesLoading || periodsLoading || periods.length === 0} className="rounded-lg bg-[#1B5E2C] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#164A22] disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? "Saving enrollment…" : "Save On-Site Enrollment"}
           </button>
         </div>

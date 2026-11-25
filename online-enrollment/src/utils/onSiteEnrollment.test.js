@@ -210,8 +210,10 @@ test("only the backend's HTTP 201 approved on-site response confirms success", (
       lrn: "123456789012",
       enrollment_status: "Approved",
       enrollment_mode: "on_site",
+      school_year: "2026-2027",
+      semester: null,
     }, "123456789012"),
-    { success: true, enrollmentId: 44, lrn: "123456789012" },
+    { success: true, enrollmentId: 44, lrn: "123456789012", schoolYear: "2026-2027", semester: null },
   );
   assert.equal(
     interpretOnSiteEnrollmentResponse(200, {

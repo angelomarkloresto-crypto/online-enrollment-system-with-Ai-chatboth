@@ -112,6 +112,8 @@ export function buildOnSiteEnrollmentPayload(form) {
 export function interpretOnSiteEnrollmentResponse(status, data, expectedLrn) {
   const enrollmentId = Number(data?.enrollment_id);
   const lrn = typeof data?.lrn === "string" ? data.lrn.trim() : "";
+  const schoolYear = typeof data?.school_year === "string" ? data.school_year.trim() : "";
+  const semester = typeof data?.semester === "string" ? data.semester.trim() : null;
   const confirmed = status === 201
     && data?.success === true
     && data.enrollment_status === "Approved"
@@ -122,7 +124,7 @@ export function interpretOnSiteEnrollmentResponse(status, data, expectedLrn) {
     && lrn === String(expectedLrn ?? "").trim();
 
   if (confirmed) {
-    return { success: true, enrollmentId, lrn };
+    return { success: true, enrollmentId, lrn, schoolYear, semester };
   }
 
   if (status === 400 || status === 409) {
