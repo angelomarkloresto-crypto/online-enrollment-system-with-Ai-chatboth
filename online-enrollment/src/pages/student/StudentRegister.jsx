@@ -7,6 +7,7 @@ import {
   enrollmentDisclosurePayload,
   validateLearnerDisclosures,
 } from "../../utils/learnerDisclosures";
+import { findVerifiedEnrollmentPeriod } from "../../utils/enrollmentPeriodValidation";
 import LearnerDisclosureFields from "../../components/LearnerDisclosureFields";
 import Hirumi from "../AI assistant/Hirumi";
 
@@ -1022,12 +1023,12 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
       if (!periodsRes.ok || !periodsData.success) {
         throw new Error(periodsData.message ?? "Could not verify the active enrollment period.");
       }
-      const verifiedPeriod = (Array.isArray(periodsData.periods) ? periodsData.periods : []).find((period) =>
-        Number(period.enrollment_period_id) === selectedEnrollmentPeriod.enrollment_period_id
-        && period.status === "Open"
-        && period.eligible === true
-        && Number(period.eligible_grade_level) === Number(regForm.grade_level)
-        && String(period.eligible_semester ?? "") === String(regForm.semester ?? ""),
+      const requestedSemester = isSHS ? regForm.semester : null;
+      const verifiedPeriod = findVerifiedEnrollmentPeriod(
+        periodsData.periods,
+        selectedEnrollmentPeriod.enrollment_period_id,
+        regForm.grade_level,
+        requestedSemester,
       );
       if (!verifiedPeriod) {
         throw new Error("The displayed enrollment period is no longer available for this application. Refresh the page and review the current period.");
@@ -1043,7 +1044,7 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
         enrollment_period_id: Number(verifiedPeriod.enrollment_period_id),
         student_type: regForm.student_type,
         grade_level: regForm.grade_level,
-        semester: isSHS ? regForm.semester : null,
+        semester: requestedSemester,
         strand_id: regForm.strand_id || null,
         average_grade: Number(ocrAverage),
         section_id: assignedSection.section_id,
