@@ -7,6 +7,7 @@ import {
   enrollmentDisclosurePayload,
   validateLearnerDisclosures,
 } from "../../utils/learnerDisclosures";
+import { buildEnrollmentDocumentPayload } from "../../utils/enrollmentDocumentPayload";
 import LearnerDisclosureFields from "../../components/LearnerDisclosureFields";
 import Hirumi from "../AI assistant/Hirumi";
 
@@ -288,7 +289,7 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
   const averageManuallyEditedRef = useRef(false);
   const ocrRequestsRef = useRef(new Map());
   const uploadSequenceRef = useRef({
-    reportCard: 0,
+    reportCardBack: 0,
     reportCardFront: 0,
     psa: 0,
     goodMoral: 0,
@@ -423,8 +424,8 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
   function validateEnrollmentStep(step) {
     const errs = {};
     if (step === 2) {
-      if (!frontName) errs.back = "Upload report card back.";
-      if (!backName) errs.front = "Upload report card front.";
+      if (!frontName) errs.front = "Upload report card front.";
+      if (!backName) errs.back = "Upload report card back.";
       if (!ocrAverage || isNaN(ocrAverage) || Number(ocrAverage) < 60 || Number(ocrAverage) > 100)
         errs.average = "Enter a valid average (60–100).";
       if (requiresGrade7Docs) {
@@ -627,64 +628,9 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
   async function handleFrontUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const sequence = ++uploadSequenceRef.current.reportCard;
+    const sequence = ++uploadSequenceRef.current.reportCardFront;
     setFrontFile(file);
     setFrontName("");
-    setOcrStatus("uploading");
-    setOcrMsg("Uploading report card back…");
-    reportCardBackDataRef.current = null;
-    reportCardDataRef.current = reportCardFrontDataRef.current ?? null;
-    if (!averageManuallyEditedRef.current) setOcrAverage("");
-    if (birthOcrDataRef.current) {
-      setBirthVerification(
-        getBirthCertificateVerification(birthOcrDataRef.current, null)
-      );
-    }
-    setEnrollErrors({});
-    try {
-      const filename = await uploadToTemp(file);
-      if (sequence !== uploadSequenceRef.current.reportCard) return;
-      setFrontName(filename);
-      setOcrStatus("scanning");
-      setOcrMsg("Scanning the report card back for the average and student details…");
-      const ocrData = await processOcr(filename);
-      if (sequence !== uploadSequenceRef.current.reportCard) return;
-      const isReportCard = ocrData.document_type === "report_card";
-      const extractedCount = applyReportCardFields(ocrData, "back");
-      if (birthOcrDataRef.current) {
-        setBirthVerification(
-          getBirthCertificateVerification(
-            birthOcrDataRef.current,
-            reportCardDataRef.current
-          )
-        );
-      }
-      const average = isReportCard
-        ? Number(ocrData.average ?? ocrData.extracted_data?.average_grade)
-        : Number.NaN;
-      if (Number.isFinite(average) && average >= 60 && average <= 100) {
-        if (!averageManuallyEditedRef.current) setOcrAverage(String(average));
-        setOcrStatus("done");
-        setOcrMsg(
-          `Average detected: ${average}. ${averageManuallyEditedRef.current ? "Your manually entered average was preserved." : "Review the result before continuing."} ${extractedCount > 0 ? "Readable student details were filled in; review them in the next steps." : "Enter any missing details manually."}`
-        );
-      } else {
-        setOcrStatus("error");
-        setOcrMsg("Could not detect a valid average. Enter it manually. Any readable student details were filled in for review.");
-      }
-    } catch (err) {
-      if (sequence !== uploadSequenceRef.current.reportCard) return;
-      setOcrStatus("error");
-      setOcrMsg(err.message ?? "Could not process image.");
-    }
-  }
-
-  async function handleBackUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const sequence = ++uploadSequenceRef.current.reportCardFront;
-    setBackFile(file);
-    setBackName("");
     setFrontOcrStatus("uploading");
     setFrontOcrMsg("Uploading report card front…");
     reportCardFrontDataRef.current = null;
@@ -697,11 +643,11 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
         )
       );
     }
-    setEnrollErrors((p) => ({ ...p, front: undefined }));
+    setEnrollErrors((previous) => ({ ...previous, front: undefined }));
     try {
       const filename = await uploadToTemp(file);
       if (sequence !== uploadSequenceRef.current.reportCardFront) return;
-      setBackName(filename);
+      setFrontName(filename);
       setFrontOcrStatus("scanning");
       setFrontOcrMsg("Scanning the report card front for the student's LRN…");
       const ocrData = await processOcr(filename);
@@ -728,9 +674,64 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
       }
     } catch (error) {
       if (sequence !== uploadSequenceRef.current.reportCardFront) return;
-      setEnrollErrors((p) => ({ ...p, front: "Could not upload or scan the front report card." }));
+      setEnrollErrors((previous) => ({ ...previous, front: "Could not upload or scan the front report card." }));
       setFrontOcrStatus("error");
       setFrontOcrMsg(error.message ?? "Could not scan the report card front. Enter the LRN manually.");
+    }
+  }
+
+  async function handleBackUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const sequence = ++uploadSequenceRef.current.reportCardBack;
+    setBackFile(file);
+    setBackName("");
+    setOcrStatus("uploading");
+    setOcrMsg("Uploading report card back…");
+    reportCardBackDataRef.current = null;
+    reportCardDataRef.current = reportCardFrontDataRef.current ?? null;
+    if (!averageManuallyEditedRef.current) setOcrAverage("");
+    if (birthOcrDataRef.current) {
+      setBirthVerification(
+        getBirthCertificateVerification(birthOcrDataRef.current, null)
+      );
+    }
+    setEnrollErrors({});
+    try {
+      const filename = await uploadToTemp(file);
+      if (sequence !== uploadSequenceRef.current.reportCardBack) return;
+      setBackName(filename);
+      setOcrStatus("scanning");
+      setOcrMsg("Scanning the report card back for the average and student details…");
+      const ocrData = await processOcr(filename);
+      if (sequence !== uploadSequenceRef.current.reportCardBack) return;
+      const isReportCard = ocrData.document_type === "report_card";
+      const extractedCount = applyReportCardFields(ocrData, "back");
+      if (birthOcrDataRef.current) {
+        setBirthVerification(
+          getBirthCertificateVerification(
+            birthOcrDataRef.current,
+            reportCardDataRef.current
+          )
+        );
+      }
+      const average = isReportCard
+        ? Number(ocrData.average ?? ocrData.extracted_data?.average_grade)
+        : Number.NaN;
+      if (Number.isFinite(average) && average >= 60 && average <= 100) {
+        if (!averageManuallyEditedRef.current) setOcrAverage(String(average));
+        setOcrStatus("done");
+        setOcrMsg(
+          `Average detected: ${average}. ${averageManuallyEditedRef.current ? "Your manually entered average was preserved." : "Review the result before continuing."} ${extractedCount > 0 ? "Readable student details were filled in; review them in the next steps." : "Enter any missing details manually."}`
+        );
+      } else {
+        setOcrStatus("error");
+        setOcrMsg("Could not detect a valid average. Enter it manually. Any readable student details were filled in for review.");
+      }
+    } catch (error) {
+      if (sequence !== uploadSequenceRef.current.reportCardBack) return;
+      setOcrStatus("error");
+      setOcrMsg(error.message ?? "Could not process image.");
     }
   }
 
@@ -1030,10 +1031,12 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
         average_grade: Number(ocrAverage),
         section_id: assignedSection.section_id,
         section_name: assignedSection.section_name,
-        report_card_front: frontName,
-        report_card_back: backName,
-        birth_certificate: psaName || null,
-        good_moral: goodMoralName || null,
+        ...buildEnrollmentDocumentPayload({
+          frontName,
+          backName,
+          psaName,
+          goodMoralName,
+        }),
         ...enrollmentDisclosurePayload(regForm),
         ocr_verification: {
           birth_certificate: birthVerification,
@@ -1293,8 +1296,8 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
                 enrollInfo={regForm}
                 strands={strands}
                 ocrAverage={ocrAverage}
-                frontName={backName}
-                backName={frontName}
+                frontName={frontName}
+                backName={backName}
                 psaName={psaName}
                 goodMoralName={goodMoralName}
                 birthVerification={birthVerification}
@@ -1649,12 +1652,12 @@ function EnrollmentStepScan({ frontFile, backFile, ocrAverage, ocrStatus, ocrMsg
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-[#0B2B26]">Report Card — Back *</label>
-          <UploadBox file={frontFile} accept="image/jpeg,image/png" inputRef={frontInputRef} onChange={onFrontUpload} label="Upload back of report card" />
+          <UploadBox file={backFile} accept="image/jpeg,image/png" inputRef={backInputRef} onChange={onBackUpload} label="Upload back of report card" />
           {errors.back && <Err msg={errors.back} />}
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-[#0B2B26]">Report Card — Front *</label>
-          <UploadBox file={backFile} accept="image/jpeg,image/png" inputRef={backInputRef} onChange={onBackUpload} label="Upload front of report card" />
+          <UploadBox file={frontFile} accept="image/jpeg,image/png" inputRef={frontInputRef} onChange={onFrontUpload} label="Upload front of report card" />
           {frontOcrStatus !== "idle" && (
             <div
               role="status"
