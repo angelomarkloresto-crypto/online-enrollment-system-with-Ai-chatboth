@@ -7,7 +7,6 @@ import {
   enrollmentDisclosurePayload,
   validateLearnerDisclosures,
 } from "../../utils/learnerDisclosures";
-import { findVerifiedEnrollmentPeriod } from "../../utils/enrollmentPeriodValidation";
 import LearnerDisclosureFields from "../../components/LearnerDisclosureFields";
 import Hirumi from "../AI assistant/Hirumi";
 
@@ -1013,32 +1012,17 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
       if (!selectedEnrollmentPeriod) {
         throw new Error("No single active enrollment period matches this grade and semester. Please contact the school.");
       }
-      const periodsRes = await fetch(`${API_BASE}/get_enrollment_periods.php`, {
-        credentials: "include",
-      });
-      const periodsData = await periodsRes.json();
-      if (!periodsRes.ok || !periodsData.success) {
-        throw new Error(periodsData.message ?? "Could not verify the active enrollment period.");
-      }
       const requestedSemester = isSHS ? regForm.semester : null;
-      const verifiedPeriod = findVerifiedEnrollmentPeriod(
-        periodsData.periods,
-        selectedEnrollmentPeriod.enrollment_period_id,
-        regForm.grade_level,
-        requestedSemester,
-      );
-      if (!verifiedPeriod) {
-        throw new Error("The displayed enrollment period is no longer available for this application. Refresh the page and review the current period.");
-      }
 
       if (!assignedSection) {
         setServerMsg({ type: "error", text: "Section not assigned." });
         return;
       }
 
+      // The submit endpoint revalidates period status and student eligibility transactionally.
       const enrollPayload = {
         student_id: studentId,
-        enrollment_period_id: Number(verifiedPeriod.enrollment_period_id),
+        enrollment_period_id: Number(selectedEnrollmentPeriod.enrollment_period_id),
         student_type: regForm.student_type,
         grade_level: regForm.grade_level,
         semester: requestedSemester,
@@ -1071,7 +1055,7 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
         });
         return;
       }
-      if (Number(enrollData.enrollment_period_id) !== Number(verifiedPeriod.enrollment_period_id)) {
+      if (Number(enrollData.enrollment_period_id) !== Number(selectedEnrollmentPeriod.enrollment_period_id)) {
         throw new Error("The submitted enrollment period could not be verified. Please contact the school before submitting again.");
       }
 
