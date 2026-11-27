@@ -2,6 +2,11 @@ import { useState, useEffect } from "react";
 import { apiUrl } from "../../config";
 import { motion } from "framer-motion";
 import SectionCreationWizard from "./SectionCreationWizard";
+import {
+  filterSectionsByGradeAndSemester,
+  getSectionSemesterUpdate,
+  sectionSemesterLabel,
+} from "../../utils/sectionFiltering";
 
 
 const API_BASE = apiUrl("/backend-online-enrollment/staff");
@@ -291,6 +296,7 @@ function SectionsTab({ onToast }) {
   const [loading, setLoading]       = useState(true);
   const [loadError, setLoadError]   = useState(null);
   const [gradeFilter, setGradeFilter] = useState("All");
+  const [semesterFilter, setSemesterFilter] = useState("1st sem");
   const [modalMode, setModalMode]   = useState(null);
   const [activeSection, setActiveSection] = useState(null);
   const [detailsSection, setDetailsSection] = useState(null);
@@ -333,15 +339,15 @@ function SectionsTab({ onToast }) {
   }
 
   const gradeOptions = ["All", "7", "8", "9", "10", "11", "12"];
-  const filtered = gradeFilter === "All"
-    ? sections
-    : sections.filter((s) => String(s.grade_level) === gradeFilter);
+  const filtered = filterSectionsByGradeAndSemester(sections, gradeFilter, semesterFilter);
+  const showSemesterFilter = ["11", "12"].includes(gradeFilter);
+  const showSemesterColumn = gradeFilter === "All" || showSemesterFilter;
 
   return (
     <>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         {/* Grade filter pills */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {gradeOptions.map((g) => (
             <button
               key={g}
@@ -355,6 +361,20 @@ function SectionsTab({ onToast }) {
               {g === "All" ? "All Grades" : `Grade ${g}`}
             </button>
           ))}
+          {showSemesterFilter && (
+            <label className="ml-1 flex items-center gap-2 text-xs font-medium text-[#5B6478]">
+              <span>Semester</span>
+              <select
+                aria-label="Filter by semester"
+                value={semesterFilter}
+                onChange={(event) => setSemesterFilter(event.target.value)}
+                className="rounded-lg border border-[#CBD9C8] bg-white px-3 py-1.5 text-xs text-[#1B5E2C] focus:outline-none focus:ring-2 focus:ring-[#F2BE22]"
+              >
+                <option value="1st sem">1st Semester</option>
+                <option value="2nd sem">2nd Semester</option>
+              </select>
+            </label>
+          )}
         </div>
         <button
           onClick={() => { setActiveSection(null); setModalMode("wizard"); }}
@@ -377,6 +397,7 @@ function SectionsTab({ onToast }) {
             <tr className="bg-[#1B5E2C] text-[#FAFAF5] text-left">
               <th className="px-5 py-3 font-medium">Section Name</th>
               <th className="px-5 py-3 font-medium">Grade</th>
+              {showSemesterColumn && <th className="px-5 py-3 font-medium">Semester</th>}
               <th className="px-5 py-3 font-medium">Strand</th>
               <th className="px-5 py-3 font-medium">Students</th>
               <th className="px-5 py-3 font-medium">Total Subjects</th>
@@ -388,14 +409,14 @@ function SectionsTab({ onToast }) {
             {loading ? (
               [...Array(4)].map((_, i) => (
                 <tr key={i} className="border-t border-[#EFF4ED]">
-                  <td colSpan={7} className="px-5 py-4">
+                  <td colSpan={showSemesterColumn ? 8 : 7} className="px-5 py-4">
                     <div className="h-4 w-1/2 rounded bg-[#EFF4ED] animate-pulse" />
                   </td>
                 </tr>
               ))
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-[#86A18A]">
+                <td colSpan={showSemesterColumn ? 8 : 7} className="px-5 py-10 text-center text-[#86A18A]">
                   No sections found.
                 </td>
               </tr>
@@ -408,6 +429,9 @@ function SectionsTab({ onToast }) {
                   <td className="px-5 py-3.5 text-[#5B6478]">
                     Grade {sec.grade_level}
                   </td>
+                  {showSemesterColumn && (
+                    <td className="px-5 py-3.5 text-[#5B6478]">{sectionSemesterLabel(sec)}</td>
+                  )}
                   <td className="px-5 py-3.5 text-[#5B6478]">
                     {sec.strand_name ?? <span className="text-[#CBD9C8]">JHS</span>}
                   </td>
@@ -465,6 +489,9 @@ function SectionsTab({ onToast }) {
                   <p className="text-xs text-[#5B6478] mt-0.5">
                     Grade {sec.grade_level} · {sec.strand_name ?? "JHS"}
                   </p>
+                  {String(sec.grade_level) === "11" || String(sec.grade_level) === "12" ? (
+                    <p className="text-xs text-[#86A18A] mt-0.5">{sectionSemesterLabel(sec)}</p>
+                  ) : null}
                 </div>
                 <span className="text-xs text-[#86A18A]">{sec.total_subjects ?? 0} subjects</span>
               </div>
@@ -665,6 +692,7 @@ function SectionFormModal({ mode, section, strands, onClose, onSaved, onError })
   const [form, setForm] = useState({
     section_name: section?.section_name ?? "",
     grade_level:  section?.grade_level  ?? "7",
+    semester:     section?.semester     ?? "",
     strand_id:    section?.strand_id    ?? "",
     max_capacity: section?.max_capacity ?? "",
   });
@@ -675,17 +703,24 @@ function SectionFormModal({ mode, section, strands, onClose, onSaved, onError })
 
   function handleChange(e) {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "grade_level" && !["11", "12"].includes(value) ? { strand_id: "", semester: "" } : {}),
+    }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
   }
 
   function validate() {
     const next = {};
+    const semesterUpdate = getSectionSemesterUpdate(form, section, isEdit);
     if (!form.section_name.trim()) next.section_name = "Section name is required.";
     if (!form.max_capacity || isNaN(form.max_capacity) || Number(form.max_capacity) < 1)
       next.max_capacity = "Enter a valid capacity.";
     if (isSHS && !form.strand_id)
       next.strand_id = "Select a strand for SHS sections.";
+    if (!semesterUpdate.isValid)
+      next.semester = "Select a semester for SHS sections.";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -696,7 +731,11 @@ function SectionFormModal({ mode, section, strands, onClose, onSaved, onError })
     setSubmitting(true);
     try {
       const body = new FormData();
-      Object.entries(form).forEach(([k, v]) => body.append(k, v));
+      Object.entries(form).forEach(([k, v]) => {
+        if (k !== "semester") body.append(k, v);
+      });
+      const semesterUpdate = getSectionSemesterUpdate(form, section, isEdit);
+      if (semesterUpdate.shouldSubmit) body.append("semester", form.semester);
       if (!isSHS) body.set("strand_id", ""); // clear strand for JHS
       if (isEdit) body.append("section_id", section.section_id);
 
@@ -750,6 +789,23 @@ function SectionFormModal({ mode, section, strands, onClose, onSaved, onError })
               ))}
             </select>
           </div>
+
+          {isSHS && (
+            <div>
+              <label className="block text-sm font-medium text-[#1B5E2C] mb-1.5">Semester</label>
+              <select
+                name="semester"
+                value={form.semester}
+                onChange={handleChange}
+                className={inputCls(errors.semester)}
+              >
+                <option value="">Select semester</option>
+                <option value="1st sem">1st Semester</option>
+                <option value="2nd sem">2nd Semester</option>
+              </select>
+              {errors.semester && <Err msg={errors.semester} />}
+            </div>
+          )}
 
           {/* Strand — only for SHS */}
           <div>

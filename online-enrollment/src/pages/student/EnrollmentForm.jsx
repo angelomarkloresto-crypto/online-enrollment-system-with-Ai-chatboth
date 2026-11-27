@@ -375,12 +375,20 @@ function EnrollmentWizard({ onBack, enrollmentPeriod, onChangePeriod }) {
   ══════════════════════════════════ */
   async function handleGoToReview() {
     if (needsRequirements && !validateRequirements()) return;
+    const periodId = Number(enrollmentPeriod?.enrollment_period_id);
+    if (!Number.isSafeInteger(periodId) || periodId < 1) {
+      setAssignError("The selected enrollment period is invalid. Please choose an available period again.");
+      return;
+    }
     setAssigning(true);
     setAssignError(null);
     setStep(activeStepKeys.length); // jump to the "review" step, wherever it lands
     setAssignedSection(null);
     try {
-      const assignmentPayload = { grade_level: Number(enrollInfo.grade_level) };
+      const assignmentPayload = {
+        enrollment_period_id: periodId,
+        grade_level: Number(enrollInfo.grade_level),
+      };
       if (isSHS) assignmentPayload.strand_id = Number(enrollInfo.strand_id);
       const res  = await fetch(`${getOcrApiBase()}/assign_section.php`, {
         method: "POST",

@@ -872,13 +872,20 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
     // Jump to review step — Review is always the last step in the wizard.
     setCurrentStep(totalSteps);
     setAssignedSection(null);
+    if (!selectedEnrollmentPeriod) {
+      setAssignError("No single active enrollment period matches this grade and semester. Please contact the school.");
+      setAssigning(false);
+      return;
+    }
     try {
       const res = await fetch(`${OCR_BASE}/assign_section.php`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          enrollment_period_id: Number(selectedEnrollmentPeriod.enrollment_period_id),
           grade_level: regForm.grade_level,
+          ...(isSHS ? { strand_id: Number(regForm.strand_id) } : {}),
           average: Number(ocrAverage),
         }),
       });

@@ -183,6 +183,7 @@ export default function SectionCreationWizard({ strands, existingSections, onClo
   const [step, setStep] = useState(0);
   const [setup, setSetup] = useState({
     grade_level: "7",
+    semester: "",
     strand_id: "",
     max_capacity: "",
     number_of_sections: "1",
@@ -208,7 +209,7 @@ export default function SectionCreationWizard({ strands, existingSections, onClo
     setSetup((previous) => ({
       ...previous,
       [name]: value,
-      ...(name === "grade_level" && !["11", "12"].includes(value) ? { strand_id: "" } : {}),
+      ...(name === "grade_level" && !["11", "12"].includes(value) ? { strand_id: "", semester: "" } : {}),
     }));
     setSetupErrors((previous) => ({ ...previous, [name]: "" }));
   }
@@ -222,6 +223,9 @@ export default function SectionCreationWizard({ strands, existingSections, onClo
       errors.max_capacity = "Enter a valid section capacity.";
     }
     if (isSHS && !setup.strand_id) errors.strand_id = "Select a strand for SHS sections.";
+    if (isSHS && !["1st sem", "2nd sem"].includes(setup.semester)) {
+      errors.semester = "Select a semester for SHS sections.";
+    }
     setSetupErrors(errors);
     if (Object.keys(errors).length) return;
     setSections(Array.from({ length: count }, (_, index) => sections[index] ?? emptySection(index)));
@@ -370,6 +374,7 @@ export default function SectionCreationWizard({ strands, existingSections, onClo
     if (savingRef.current || !validateAll()) return;
     const payload = {
       grade_level: Number(setup.grade_level),
+      semester: isSHS ? setup.semester : null,
       number_of_sections: sections.length,
       sections: sections.map((section) => ({
         section_name: section.section_name.trim(),
@@ -483,6 +488,15 @@ export default function SectionCreationWizard({ strands, existingSections, onClo
                     {GRADE_LEVELS.map((grade) => <option key={grade.value} value={grade.value}>{grade.label} ({grade.type})</option>)}
                   </select>
                 </Field>
+                {isSHS && (
+                  <Field label="Semester" error={setupErrors.semester}>
+                    <select name="semester" value={setup.semester} onChange={handleSetupChange} className={inputClass(setupErrors.semester)}>
+                      <option value="">Select semester</option>
+                      <option value="1st sem">1st Semester</option>
+                      <option value="2nd sem">2nd Semester</option>
+                    </select>
+                  </Field>
+                )}
                 <Field label={<>Strand {!isSHS && <span className="font-normal text-[#86A18A]">(JHS — not required)</span>}</>} error={setupErrors.strand_id}>
                   <select name="strand_id" value={setup.strand_id} onChange={handleSetupChange} disabled={!isSHS} className={`${inputClass(setupErrors.strand_id)} disabled:cursor-not-allowed disabled:bg-[#FAFAF5] disabled:text-[#A8AEBC]`}>
                     <option value="">— None —</option>
