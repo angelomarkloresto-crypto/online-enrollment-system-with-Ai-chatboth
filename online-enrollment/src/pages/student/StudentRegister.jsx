@@ -8,6 +8,7 @@ import {
   validateLearnerDisclosures,
 } from "../../utils/learnerDisclosures";
 import { buildEnrollmentDocumentPayload } from "../../utils/enrollmentDocumentPayload";
+import { createSerializedUploadQueue } from "../../utils/serializedUploadQueue";
 import LearnerDisclosureFields from "../../components/LearnerDisclosureFields";
 import Hirumi from "../AI assistant/Hirumi";
 
@@ -288,6 +289,7 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
   const manuallyEditedFieldsRef = useRef(new Set());
   const averageManuallyEditedRef = useRef(false);
   const ocrRequestsRef = useRef(new Map());
+  const uploadQueueRef = useRef(createSerializedUploadQueue());
   const uploadSequenceRef = useRef({
     reportCardBack: 0,
     reportCardFront: 0,
@@ -527,17 +529,19 @@ export default function StudentRegister({ onLoginSuccess, onGoLogin }) {
     setCurrentStep(currentStep - 1);
   }
 
-  async function uploadToTemp(file) {
-    const body = new FormData();
-    body.append("report_card", file);
-    const res = await fetch(`${OCR_BASE}/scan_report_card.php`, {
-      method: "POST", credentials: "include", body,
+  function uploadToTemp(file) {
+    return uploadQueueRef.current(async () => {
+      const body = new FormData();
+      body.append("report_card", file);
+      const res = await fetch(`${OCR_BASE}/scan_report_card.php`, {
+        method: "POST", credentials: "include", body,
+      });
+      const data = await readOcrResponse(res, "Could not upload the report card.");
+      if (typeof data.filename !== "string" || !data.filename) {
+        throw new Error("The upload response did not include a filename. Please try again.");
+      }
+      return data.filename;
     });
-    const data = await readOcrResponse(res, "Could not upload the report card.");
-    if (typeof data.filename !== "string" || !data.filename) {
-      throw new Error("The upload response did not include a filename. Please try again.");
-    }
-    return data.filename;
   }
 
   function processOcr(filename) {
@@ -1650,7 +1654,7 @@ function EnrollmentStepInfo({ enrollInfo, setEnrollInfo, strands, errors, setErr
   );
 }
 
-function EnrollmentStepScan({ frontFile, backFile, ocrAverage, ocrStatus, ocrMsg, frontOcrStatus, frontOcrMsg, errors, onFrontUpload, onBackUpload, onAverageChange, frontInputRef, backInputRef }) {
+function EnrollmentStepScan({ frontFile, frontName, backFile, backName, ocrAverage, ocrStatus, ocrMsg, frontOcrStatus, frontOcrMsg, errors, onFrontUpload, onBackUpload, onAverageChange, frontInputRef, backInputRef }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-[#526257]">
@@ -1659,12 +1663,12 @@ function EnrollmentStepScan({ frontFile, backFile, ocrAverage, ocrStatus, ocrMsg
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-[#0B2B26]">Report Card — Back *</label>
-          <UploadBox file={backFile} accept="image/jpeg,image/png" inputRef={backInputRef} onChange={onBackUpload} label="Upload back of report card" />
+          <UploadBox file={backFile} uploaded={Boolean(backName)} uploadStatus={ocrStatus} accept="image/jpeg,image/png" inputRef={backInputRef} onChange={onBackUpload} label="Upload back of report card" />
           {errors.back && <Err msg={errors.back} />}
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-[#0B2B26]">Report Card — Front *</label>
-          <UploadBox file={frontFile} accept="image/jpeg,image/png" inputRef={frontInputRef} onChange={onFrontUpload} label="Upload front of report card" />
+          <UploadBox file={frontFile} uploaded={Boolean(frontName)} uploadStatus={frontOcrStatus} accept="image/jpeg,image/png" inputRef={frontInputRef} onChange={onFrontUpload} label="Upload front of report card" />
           {frontOcrStatus !== "idle" && (
             <div
               role="status"
@@ -1848,7 +1852,7 @@ function Field({ label, name, value, onChange, error, placeholder, type = "text"
   );
 }
 
-function UploadBox({ file, accept, inputRef, onChange, label }) {
+function UploadBox({ file, uploaded, uploadStatus, accept, inputRef, onChange, label }) {
   const cameraInputRef = useRef(null);
   return (
     <motion.div
@@ -1862,9 +1866,17 @@ function UploadBox({ file, accept, inputRef, onChange, label }) {
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onChange} />
       {file ? (
         <div className="mb-3 min-w-0">
-          <p className="mb-1 text-xl" aria-hidden="true">✓</p>
+          <p className="mb-1 text-xl" aria-hidden="true">{uploaded ? "✓" : uploadStatus === "uploading" ? "…" : " "}</p>
           <p className="max-w-full truncate text-sm font-semibold">{file.name}</p>
-          <p className="text-xs text-white/70">Uploaded</p>
+          <p className="text-xs text-white/70">
+            {uploaded
+              ? "Uploaded"
+              : uploadStatus === "uploading"
+                ? "Uploading…"
+                : uploadStatus === "error"
+                  ? "Upload failed"
+                  : "Selected"}
+          </p>
         </div>
       ) : (
         <p className="mb-3 text-sm font-semibold">{label}</p>
