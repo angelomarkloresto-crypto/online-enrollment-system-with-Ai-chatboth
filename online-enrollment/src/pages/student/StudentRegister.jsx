@@ -1734,9 +1734,7 @@ function EnrollmentStepRequirements({ psaFile, psaName, psaOcrStatus, psaOcrMsg,
             {psaOcrStatus !== "idle" && (
               <p
                 role="status"
-                className={`mt-2 text-xs ${
-                  psaOcrStatus === "error" ? "text-[#B3492B]" : "text-[#17350f]"
-                }`}
+                className="mt-2 text-xs text-black"
               >
                 {psaOcrMsg}
               </p>
